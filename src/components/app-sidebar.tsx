@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { School, GraduationCap, LogOut, User, Calendar, Package } from "lucide-react"
+import { School, GraduationCap, LogOut, User, Calendar, Package, UserRoundCog } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ import type { AuthUser } from "@/lib/types"
 
 const routes = [
   { href: "/schools", label: "Escolas", icon: School },
+  { href: "/orientadores", label: "Orientadores", icon: UserRoundCog },
   { href: "/items", label: "Itens", icon: Package },
   { href: "/all-schedules", label: "Horário Geral", icon: Calendar },
 ]

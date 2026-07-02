@@ -6,6 +6,17 @@ export interface School {
   state: string
   city: string
   color?: string
+  orientadorId?: string
+  createdAt: string
+}
+
+export interface Orientador {
+  id: string
+  name: string
+  email: string
+  region: string
+  state: string
+  city: string
   createdAt: string
 }
 

@@ -1,4 +1,4 @@
-import type { School, Class, Room, Student, Schedule, AuthUser, SegmentConfig, Item, NapItem } from "./types"
+import type { School, Class, Room, Student, Schedule, AuthUser, SegmentConfig, Item, NapItem, Orientador } from "./types"
 
 const STORAGE_KEYS = {
   schools: "control-schools:schools",
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   segmentConfigs: "control-schools:segment-configs",
   items: "control-schools:items",
   napItems: "control-schools:nap-items",
+  orientadores: "control-schools:orientadores",
 } as const
 
 function getItems<T>(key: string): T[] {
@@ -459,4 +460,47 @@ export function deleteNapItemsBySchool(schoolId: string): void {
     (n) => n.schoolId !== schoolId
   )
   setItems(STORAGE_KEYS.napItems, all)
+}
+
+// Orientadores
+export function getOrientadores(): Orientador[] {
+  return getItems<Orientador>(STORAGE_KEYS.orientadores)
+}
+
+export function getOrientador(id: string): Orientador | undefined {
+  return getOrientadores().find((o) => o.id === id)
+}
+
+export function createOrientador(
+  data: Omit<Orientador, "id" | "createdAt">
+): Orientador {
+  const orientadores = getOrientadores()
+  const orientador: Orientador = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  }
+  setItems(STORAGE_KEYS.orientadores, [...orientadores, orientador])
+  return orientador
+}
+
+export function updateOrientador(
+  id: string,
+  data: Partial<Omit<Orientador, "id" | "createdAt">>
+): Orientador | undefined {
+  const orientadores = getOrientadores()
+  const index = orientadores.findIndex((o) => o.id === id)
+  if (index === -1) return undefined
+  orientadores[index] = { ...orientadores[index], ...data }
+  setItems(STORAGE_KEYS.orientadores, orientadores)
+  return orientadores[index]
+}
+
+export function deleteOrientador(id: string): void {
+  const orientadores = getOrientadores().filter((o) => o.id !== id)
+  setItems(STORAGE_KEYS.orientadores, orientadores)
+  const schools = getSchools().map((s) =>
+    s.orientadorId === id ? { ...s, orientadorId: undefined } : s
+  )
+  setItems(STORAGE_KEYS.schools, schools)
 }

@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
-import type { School } from "@/lib/types"
+import type { School, Orientador } from "@/lib/types"
 import {
   getSchools,
   createSchool,
@@ -38,6 +38,7 @@ import {
   getClassesBySchool,
   getRoomsByClass,
   getStudentsByRoom,
+  getOrientadores,
 } from "@/lib/db"
 import { REGIONS } from "@/lib/brazil-data"
 import { fetchStatesByRegion, fetchCitiesByState } from "@/lib/ibge-api"
@@ -55,6 +56,8 @@ export default function SchoolsPage() {
   const [state, setState] = useState("")
   const [city, setCity] = useState("")
   const [color, setColor] = useState("")
+  const [orientadorId, setOrientadorId] = useState("")
+  const [orientadores, setOrientadores] = useState<Orientador[]>([])
 
   const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([])
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([])
@@ -62,6 +65,7 @@ export default function SchoolsPage() {
   const [loadingCities, setLoadingCities] = useState(false)
 
   const [filterState, setFilterState] = useState("")
+  const [filterOrientadorId, setFilterOrientadorId] = useState("")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [schoolStats, setSchoolStats] = useState<Record<string, { classes: number; students: number }>>({})
@@ -71,6 +75,7 @@ export default function SchoolsPage() {
   useEffect(() => {
     const allSchools = getSchools()
     setSchools(allSchools)
+    setOrientadores(getOrientadores())
 
     const stats: Record<string, { classes: number; students: number }> = {}
     for (const school of allSchools) {
@@ -102,9 +107,9 @@ export default function SchoolsPage() {
     )
   }, [])
 
-  const filteredSchools = filterState
-    ? schools.filter((s) => s.state === filterState)
-    : schools
+  const filteredSchools = schools
+    .filter((s) => !filterState || s.state === filterState)
+    .filter((s) => !filterOrientadorId || s.orientadorId === filterOrientadorId)
 
   const totalPages = Math.ceil(filteredSchools.length / pageSize)
   const paginatedSchools = filteredSchools.slice(
@@ -114,7 +119,7 @@ export default function SchoolsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [filterState, pageSize])
+  }, [filterState, filterOrientadorId, pageSize])
 
   function refresh() {
     setSchools(getSchools())
@@ -131,6 +136,7 @@ export default function SchoolsPage() {
       setState("")
       setCity("")
       setColor("")
+      setOrientadorId("")
       setStateOptions([])
       setCityOptions([])
     }
@@ -177,6 +183,7 @@ export default function SchoolsPage() {
     setName(school.name)
     setAddress(school.address)
     setColor(school.color ?? "")
+    setOrientadorId(school.orientadorId ?? "")
     setOpen(true)
 
     setLoadingStates(true)
@@ -217,6 +224,7 @@ export default function SchoolsPage() {
         state,
         city,
         color: color || undefined,
+        orientadorId: orientadorId || undefined,
       })
     } else {
       createSchool({
@@ -226,6 +234,7 @@ export default function SchoolsPage() {
         state,
         city,
         color: color || undefined,
+        orientadorId: orientadorId || undefined,
       })
     }
     handleOpenChange(false)
@@ -333,6 +342,20 @@ export default function SchoolsPage() {
                 />
               </div>
             </div>
+            <div className="flex flex-col gap-2">
+              <Label>Orientador</Label>
+              <SearchableSelect
+                options={[
+                  { value: "", label: "Nenhum orientador" },
+                  ...orientadores.map((o) => ({ value: o.id, label: o.name })),
+                ]}
+                value={orientadorId}
+                onChange={setOrientadorId}
+                placeholder="Selecione um orientador"
+                searchPlaceholder="Buscar orientador..."
+                emptyText="Nenhum orientador encontrado."
+              />
+            </div>
             <Button onClick={handleSave}>
               {editingSchool ? "Salvar" : "Criar"}
             </Button>
@@ -340,7 +363,7 @@ export default function SchoolsPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-4 mb-4">
         <div className="flex items-center gap-2">
           <Label className="text-sm whitespace-nowrap">Filtrar por Estado:</Label>
           <SearchableSelect
@@ -359,6 +382,29 @@ export default function SchoolsPage() {
               variant="ghost"
               size="sm"
               onClick={() => setFilterState("")}
+            >
+              Limpar
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-sm whitespace-nowrap">Filtrar por Orientador:</Label>
+          <SearchableSelect
+            options={[
+              { value: "", label: "Todos os orientadores" },
+              ...orientadores.map((o) => ({ value: o.id, label: o.name })),
+            ]}
+            value={filterOrientadorId}
+            onChange={setFilterOrientadorId}
+            placeholder="Todos os orientadores"
+            searchPlaceholder="Buscar orientador..."
+            emptyText="Nenhum orientador encontrado."
+          />
+          {filterOrientadorId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilterOrientadorId("")}
             >
               Limpar
             </Button>
@@ -383,9 +429,10 @@ export default function SchoolsPage() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Cidade</TableHead>
-                    <TableHead className="text-center">Qtd Turmas</TableHead>
-                    <TableHead className="text-center">Qtd Alunos</TableHead>
-                    <TableHead>Ações</TableHead>
+                    <TableHead>Orientador</TableHead>
+                    <TableHead>Qtd Turmas</TableHead>
+                    <TableHead>Qtd Alunos</TableHead>
+                    <TableHead className="w-px">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -404,6 +451,9 @@ export default function SchoolsPage() {
                       </TableCell>
                       <TableCell>{school.state || "-"}</TableCell>
                       <TableCell>{school.city || "-"}</TableCell>
+                      <TableCell>
+                        {orientadores.find((o) => o.id === school.orientadorId)?.name || "-"}
+                      </TableCell>
                       <TableCell className="text-center">
                         {schoolStats[school.id]?.classes ?? 0}
                       </TableCell>
@@ -411,7 +461,7 @@ export default function SchoolsPage() {
                         {schoolStats[school.id]?.students ?? 0}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex justify-center gap-2">
                           <Link
                             href={`/schools/${school.id}/classes`}
                           >
