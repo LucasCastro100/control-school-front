@@ -1,4 +1,4 @@
-import type { School, Class, Room, Student, Schedule, AuthUser, SegmentConfig, Item, NapItem, Orientador } from "./types"
+import type { School, Class, Room, Student, Schedule, AuthUser, SegmentConfig, Item, NapItem, Orientador, TbrCategory, TbrTeam } from "./types"
 
 const STORAGE_KEYS = {
   schools: "control-schools:schools",
@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   items: "control-schools:items",
   napItems: "control-schools:nap-items",
   orientadores: "control-schools:orientadores",
+  tbrCategories: "control-schools:tbr-categories",
+  tbrTeams: "control-schools:tbr-teams",
 } as const
 
 function getItems<T>(key: string): T[] {
@@ -117,6 +119,7 @@ export function deleteSchool(id: string): void {
   setItems(STORAGE_KEYS.schedules, schedules)
   deleteSegmentConfigsBySchool(id)
   deleteNapItemsBySchool(id)
+  deleteTbrTeamsBySchool(id)
 }
 
 // Classes
@@ -503,4 +506,96 @@ export function deleteOrientador(id: string): void {
     s.orientadorId === id ? { ...s, orientadorId: undefined } : s
   )
   setItems(STORAGE_KEYS.schools, schools)
+}
+
+// TBR Categories
+export function getTbrCategories(): TbrCategory[] {
+  return getItems<TbrCategory>(STORAGE_KEYS.tbrCategories)
+}
+
+export function getTbrCategory(id: string): TbrCategory | undefined {
+  return getTbrCategories().find((c) => c.id === id)
+}
+
+export function createTbrCategory(
+  data: Omit<TbrCategory, "id" | "createdAt">
+): TbrCategory {
+  const categories = getTbrCategories()
+  const category: TbrCategory = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  }
+  setItems(STORAGE_KEYS.tbrCategories, [...categories, category])
+  return category
+}
+
+export function updateTbrCategory(
+  id: string,
+  data: Partial<Omit<TbrCategory, "id" | "createdAt">>
+): TbrCategory | undefined {
+  const categories = getTbrCategories()
+  const index = categories.findIndex((c) => c.id === id)
+  if (index === -1) return undefined
+  categories[index] = { ...categories[index], ...data }
+  setItems(STORAGE_KEYS.tbrCategories, categories)
+  return categories[index]
+}
+
+export function deleteTbrCategory(id: string): void {
+  const categories = getTbrCategories().filter((c) => c.id !== id)
+  setItems(STORAGE_KEYS.tbrCategories, categories)
+  const teams = getAllTbrTeams().filter((t) => t.categoryId !== id)
+  setItems(STORAGE_KEYS.tbrTeams, teams)
+}
+
+// TBR Teams
+export function getAllTbrTeams(): TbrTeam[] {
+  return getItems<TbrTeam>(STORAGE_KEYS.tbrTeams)
+}
+
+export function getTbrTeamsBySchool(schoolId: string): TbrTeam[] {
+  return getAllTbrTeams().filter((t) => t.schoolId === schoolId)
+}
+
+export function getTbrTeamsByCategory(categoryId: string): TbrTeam[] {
+  return getAllTbrTeams().filter((t) => t.categoryId === categoryId)
+}
+
+export function createTbrTeam(
+  data: Omit<TbrTeam, "id" | "createdAt">
+): TbrTeam {
+  const teams = getAllTbrTeams()
+  const team: TbrTeam = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  }
+  setItems(STORAGE_KEYS.tbrTeams, [...teams, team])
+  return team
+}
+
+export function deleteTbrTeam(id: string): void {
+  const teams = getAllTbrTeams().filter((t) => t.id !== id)
+  setItems(STORAGE_KEYS.tbrTeams, teams)
+}
+
+export function deleteTbrTeamsBySchool(schoolId: string): void {
+  const teams = getAllTbrTeams().filter((t) => t.schoolId !== schoolId)
+  setItems(STORAGE_KEYS.tbrTeams, teams)
+}
+
+export function replaceTbrTeamsForSchool(
+  schoolId: string,
+  teams: { categoryId: string; name: string }[]
+): void {
+  const others = getAllTbrTeams().filter((t) => t.schoolId !== schoolId)
+  const newTeams: TbrTeam[] = teams.map((t) => ({
+    id: generateId(),
+    schoolId,
+    categoryId: t.categoryId,
+    name: t.name,
+    createdAt: new Date().toISOString(),
+  }))
+  setItems(STORAGE_KEYS.tbrTeams, [...others, ...newTeams])
 }

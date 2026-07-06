@@ -83,6 +83,20 @@ export interface NapItem {
   quantity: number
 }
 
+export interface TbrCategory {
+  id: string
+  name: string
+  createdAt: string
+}
+
+export interface TbrTeam {
+  id: string
+  schoolId: string
+  categoryId: string
+  name: string
+  createdAt: string
+}
+
 export type DayOfWeek =
   | "Segunda"
   | "Terça"

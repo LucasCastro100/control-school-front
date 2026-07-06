@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette } from "lucide-react"
+import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, X } from "lucide-react"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
-import type { School, Orientador } from "@/lib/types"
+import type { School, Orientador, TbrCategory } from "@/lib/types"
 import {
   getSchools,
   createSchool,
@@ -39,6 +39,9 @@ import {
   getRoomsByClass,
   getStudentsByRoom,
   getOrientadores,
+  getTbrCategories,
+  getTbrTeamsBySchool,
+  replaceTbrTeamsForSchool,
 } from "@/lib/db"
 import { REGIONS } from "@/lib/brazil-data"
 import { fetchStatesByRegion, fetchCitiesByState } from "@/lib/ibge-api"
@@ -58,6 +61,10 @@ export default function SchoolsPage() {
   const [color, setColor] = useState("")
   const [orientadorId, setOrientadorId] = useState("")
   const [orientadores, setOrientadores] = useState<Orientador[]>([])
+  const [tbrCategories, setTbrCategories] = useState<TbrCategory[]>([])
+  const [teams, setTeams] = useState<{ id: string; categoryId: string; name: string }[]>([])
+  const [teamCategoryId, setTeamCategoryId] = useState("")
+  const [teamName, setTeamName] = useState("")
 
   const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([])
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([])
@@ -68,7 +75,7 @@ export default function SchoolsPage() {
   const [filterOrientadorId, setFilterOrientadorId] = useState("")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [schoolStats, setSchoolStats] = useState<Record<string, { classes: number; students: number }>>({})
+  const [schoolStats, setSchoolStats] = useState<Record<string, { classes: number; students: number; teams: number }>>({})
 
   const { setHeader } = usePageHeader()
 
@@ -76,8 +83,9 @@ export default function SchoolsPage() {
     const allSchools = getSchools()
     setSchools(allSchools)
     setOrientadores(getOrientadores())
+    setTbrCategories(getTbrCategories())
 
-    const stats: Record<string, { classes: number; students: number }> = {}
+    const stats: Record<string, { classes: number; students: number; teams: number }> = {}
     for (const school of allSchools) {
       const classes = getClassesBySchool(school.id)
       let students = 0
@@ -87,7 +95,8 @@ export default function SchoolsPage() {
           students += getStudentsByRoom(room.id).length
         }
       }
-      stats[school.id] = { classes: classes.length, students }
+      const teamsCount = getTbrTeamsBySchool(school.id).length
+      stats[school.id] = { classes: classes.length, students, teams: teamsCount }
     }
     setSchoolStats(stats)
   }, [])
@@ -122,7 +131,20 @@ export default function SchoolsPage() {
   }, [filterState, filterOrientadorId, pageSize])
 
   function refresh() {
-    setSchools(getSchools())
+    const allSchools = getSchools()
+    setSchools(allSchools)
+    setSchoolStats((prev) => {
+      const stats = { ...prev }
+      for (const school of allSchools) {
+        stats[school.id] = {
+          ...stats[school.id],
+          classes: stats[school.id]?.classes ?? 0,
+          students: stats[school.id]?.students ?? 0,
+          teams: getTbrTeamsBySchool(school.id).length,
+        }
+      }
+      return stats
+    })
     router.refresh()
   }
 
@@ -139,7 +161,23 @@ export default function SchoolsPage() {
       setOrientadorId("")
       setStateOptions([])
       setCityOptions([])
+      setTeams([])
+      setTeamCategoryId("")
+      setTeamName("")
     }
+  }
+
+  function addTeam() {
+    if (!teamCategoryId || !teamName.trim()) return
+    setTeams((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), categoryId: teamCategoryId, name: teamName.trim() },
+    ])
+    setTeamName("")
+  }
+
+  function removeTeam(id: string) {
+    setTeams((prev) => prev.filter((t) => t.id !== id))
   }
 
   function handleRegionChange(value: string) {
@@ -184,6 +222,13 @@ export default function SchoolsPage() {
     setAddress(school.address)
     setColor(school.color ?? "")
     setOrientadorId(school.orientadorId ?? "")
+    setTeams(
+      getTbrTeamsBySchool(school.id).map((t) => ({
+        id: t.id,
+        categoryId: t.categoryId,
+        name: t.name,
+      }))
+    )
     setOpen(true)
 
     setLoadingStates(true)
@@ -216,6 +261,7 @@ export default function SchoolsPage() {
 
   function handleSave() {
     if (!name.trim()) return
+    let schoolId: string
     if (editingSchool) {
       updateSchool(editingSchool.id, {
         name: name.trim(),
@@ -226,8 +272,9 @@ export default function SchoolsPage() {
         color: color || undefined,
         orientadorId: orientadorId || undefined,
       })
+      schoolId = editingSchool.id
     } else {
-      createSchool({
+      const created = createSchool({
         name: name.trim(),
         address: address.trim(),
         region,
@@ -236,7 +283,12 @@ export default function SchoolsPage() {
         color: color || undefined,
         orientadorId: orientadorId || undefined,
       })
+      schoolId = created.id
     }
+    replaceTbrTeamsForSchool(
+      schoolId,
+      teams.map((t) => ({ categoryId: t.categoryId, name: t.name }))
+    )
     handleOpenChange(false)
     refresh()
   }
@@ -356,6 +408,59 @@ export default function SchoolsPage() {
                 emptyText="Nenhum orientador encontrado."
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label>Equipes TBR</Label>
+              {tbrCategories.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma categoria cadastrada. Cadastre categorias em &quot;TBR&quot; no menu.
+                </p>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchableSelect
+                      options={tbrCategories.map((c) => ({ value: c.id, label: c.name }))}
+                      value={teamCategoryId}
+                      onChange={setTeamCategoryId}
+                      placeholder="Categoria"
+                      searchPlaceholder="Buscar categoria..."
+                      emptyText="Nenhuma categoria encontrada."
+                    />
+                  </div>
+                  <Input
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="Nome da equipe"
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={addTeam}>
+                    <Plus className="size-4" />
+                  </Button>
+                </div>
+              )}
+              {teams.length > 0 && (
+                <div className="flex flex-col gap-1 max-h-40 overflow-y-auto rounded-md border p-2">
+                  {teams.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between text-sm">
+                      <span>
+                        <span className="text-muted-foreground">
+                          {tbrCategories.find((c) => c.id === t.categoryId)?.name ?? "-"}:
+                        </span>{" "}
+                        {t.name}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-6"
+                        onClick={() => removeTeam(t.id)}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <Button onClick={handleSave}>
               {editingSchool ? "Salvar" : "Criar"}
             </Button>
@@ -432,6 +537,7 @@ export default function SchoolsPage() {
                     <TableHead>Orientador</TableHead>
                     <TableHead>Qtd Turmas</TableHead>
                     <TableHead>Qtd Alunos</TableHead>
+                    <TableHead>Equipes TBR</TableHead>
                     <TableHead className="w-px">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -459,6 +565,9 @@ export default function SchoolsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {schoolStats[school.id]?.students ?? 0}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {schoolStats[school.id]?.teams ?? 0}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">
