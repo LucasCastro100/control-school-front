@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use } from "react"
-import { Plus, Pencil, Trash2, Users } from "lucide-react"
+import { Plus, Pencil, Trash2, Users, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -55,6 +55,8 @@ export default function StudentsPage({
   const [editingStudent, setEditingStudent] = useState<Student | null>(
     null
   )
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const [registrationNumber, setRegistrationNumber] = useState("")
   const { setHeader } = usePageHeader()
@@ -104,27 +106,35 @@ export default function StudentsPage({
 
   function handleSave() {
     if (!name.trim() || !registrationNumber.trim()) return
-    if (editingStudent) {
-      updateStudent(editingStudent.id, {
-        name: name.trim(),
-        registrationNumber: registrationNumber.trim(),
-      })
-    } else {
-      createStudent({
-        roomId,
-        name: name.trim(),
-        registrationNumber: registrationNumber.trim(),
-      })
-    }
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      if (editingStudent) {
+        updateStudent(editingStudent.id, {
+          name: name.trim(),
+          registrationNumber: registrationNumber.trim(),
+        })
+      } else {
+        createStudent({
+          roomId,
+          name: name.trim(),
+          registrationNumber: registrationNumber.trim(),
+        })
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+    }, 0)
   }
 
-  function handleDelete(studentId: string) {
-    if (confirm("Tem certeza que deseja excluir este aluno?")) {
-      deleteStudent(studentId)
-      refresh()
-    }
+  function handleDelete(studentId: string, label: string) {
+    setDeleteTarget({ id: studentId, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteStudent(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
   }
 
   return (
@@ -184,9 +194,25 @@ export default function StudentsPage({
                 placeholder="Número de matrícula"
               />
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingStudent ? "Salvar" : "Criar"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir o aluno <strong>{deleteTarget?.label}</strong>?
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -227,13 +253,13 @@ export default function StudentsPage({
                         >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() =>
-                            handleDelete(student.id)
-                          }
-                        >
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() =>
+                              handleDelete(student.id, student.name)
+                            }
+                          >
                           <Trash2 className="size-4" />
                         </Button>
                       </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
-import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package } from "lucide-react"
+import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -91,6 +91,9 @@ export default function ClassesPage() {
   >({})
   const [items, setItems] = useState<Item[]>([])
   const [napItems, setNapItems] = useState<NapItem[]>([])
+  const [saving, setSaving] = useState(false)
+  const [savingItems, setSavingItems] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [itemDialog, setItemDialog] = useState(false)
   const [itemSegName, setItemSegName] = useState("")
   const [itemQuantities, setItemQuantities] = useState<Record<string, string>>({})
@@ -138,13 +141,13 @@ export default function ClassesPage() {
         <Link href={"/items?schoolId=" + id}>
           <Button variant="outline" size="sm" className="gap-2">
             <Package className="size-4" />
-            Itens
+            Items
           </Button>
         </Link>
         <Link href={"/schools/" + id + "/schedules"}>
           <Button variant="outline" size="sm" className="gap-2">
             <Calendar className="size-4" />
-            Horários Gerais
+            General Schedules
           </Button>
         </Link>
         <Button size="sm" onClick={() => setOpen(true)}>
@@ -193,20 +196,28 @@ export default function ClassesPage() {
 
   function handleSave() {
     if (!segmento || !name.trim()) return
-    if (editingClass) {
-      updateClass(editingClass.id, { nap: segmento, name: name.trim() })
-    } else {
-      createClass({ schoolId: id, nap: segmento, name: name.trim() })
-    }
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      if (editingClass) {
+        updateClass(editingClass.id, { nap: segmento, name: name.trim() })
+      } else {
+        createClass({ schoolId: id, nap: segmento, name: name.trim() })
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+    }, 0)
   }
 
-  function handleDelete(classId: string) {
-    if (confirm("Tem certeza que deseja excluir esta turma?")) {
-      deleteClass(classId)
-      refresh()
-    }
+  function handleDelete(classId: string, label: string) {
+    setDeleteTarget({ id: classId, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteClass(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
   }
 
   function openItemDialog(segName: string) {
@@ -222,19 +233,23 @@ export default function ClassesPage() {
   }
 
   function handleSaveItems() {
-    for (const itemId of Object.keys(itemQuantities)) {
-      const qty = parseInt(itemQuantities[itemId]) || 0
-      if (qty > 0) {
-        upsertNapItem(id, itemSegName, itemId, qty)
-      } else {
-        const existing = napItems.find(
-          (n) => n.segmentName === itemSegName && n.itemId === itemId
-        )
-        if (existing) deleteNapItem(existing.id)
+    setSavingItems(true)
+    setTimeout(() => {
+      for (const itemId of Object.keys(itemQuantities)) {
+        const qty = parseInt(itemQuantities[itemId]) || 0
+        if (qty > 0) {
+          upsertNapItem(id, itemSegName, itemId, qty)
+        } else {
+          const existing = napItems.find(
+            (n) => n.segmentName === itemSegName && n.itemId === itemId
+          )
+          if (existing) deleteNapItem(existing.id)
+        }
       }
-    }
-    setNapItems(getNapItems(id))
-    setItemDialog(false)
+      setNapItems(getNapItems(id))
+      setSavingItems(false)
+      setItemDialog(false)
+    }, 0)
   }
 
   const yearOptions = segmento
@@ -317,7 +332,8 @@ export default function ClassesPage() {
                 placeholder="Ex: 1 Ano A"
               />
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingClass ? "Salvar" : "Criar"}
             </Button>
           </div>
@@ -371,8 +387,27 @@ export default function ClassesPage() {
             })()}
           </div>
           {items.length > 0 && (
-            <Button onClick={handleSaveItems}>Salvar</Button>
+            <Button onClick={handleSaveItems} disabled={savingItems}>
+              {savingItems && <LoaderCircle className="size-4 animate-spin" />}
+              Salvar
+            </Button>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir a turma <strong>{deleteTarget?.label}</strong>?
+            Esta ação irá remover também salas, alunos e horários vinculados.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -468,7 +503,7 @@ export default function ClassesPage() {
                               variant="destructive"
                               size="icon"
                               className="size-8"
-                              onClick={() => handleDelete(cls.id)}
+                              onClick={() => handleDelete(cls.id, cls.name)}
                             >
                               <Trash2 className="size-3.5" />
                             </Button>

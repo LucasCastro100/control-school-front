@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { School, GraduationCap, LogOut, User, Calendar, Package, UserRoundCog, Users } from "lucide-react"
+import { School, GraduationCap, LogOut, User, Calendar, Package, UserRoundCog, Users, Save, Upload, Download, Database, ChevronDown } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -14,12 +15,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { logout } from "@/lib/db"
+import { toast } from "sonner"
+import { logout, exportStorageData, importStorageData } from "@/lib/db"
 import type { AuthUser } from "@/lib/types"
 
 const routes = [
   { href: "/schools", label: "Escolas", icon: School },
-  { href: "/orientadores", label: "Orientadores", icon: UserRoundCog },
+  { href: "/advisors", label: "Orientadores", icon: UserRoundCog },
   { href: "/items", label: "Itens", icon: Package },
   { href: "/tbr", label: "TBR", icon: Users },
   { href: "/all-schedules", label: "Horário Geral", icon: Calendar },
@@ -32,6 +34,59 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
   function handleLogout() {
     logout()
     router.push("/login")
+  }
+
+  const [saving, setSaving] = useState(false)
+  const [dataOpen, setDataOpen] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const data = exportStorageData()
+      const res = await fetch("/api/seed-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        toast.success("Dados salvos em seed.json com sucesso!")
+      } else {
+        toast.error("Erro ao salvar dados.")
+      }
+    } catch {
+      toast.error("Erro ao conectar com o servidor.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleExport() {
+    const data = exportStorageData()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "seed-data.json"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string)
+        importStorageData(data)
+        router.refresh()
+        window.location.reload()
+      } catch {
+        toast.error("Erro ao importar: arquivo inválido.")
+      }
+    }
+    reader.readAsText(file)
+    event.target.value = ""
   }
 
   return (
@@ -70,6 +125,57 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
                   </SidebarMenuItem>
                 )
               })}
+              {user?.email === "admin@gmail.com" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setDataOpen(!dataOpen)}
+                    tooltip="Dados"
+                  >
+                    <Database />
+                    <span>Dados</span>
+                    <ChevronDown className={`ml-auto size-3 transition-transform ${dataOpen ? "rotate-0" : "-rotate-90"}`} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {user?.email === "admin@gmail.com" && dataOpen && (
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={handleSave}
+                      disabled={saving}
+                      tooltip="Salvar no seed.json"
+                    >
+                      <Save />
+                      <span>{saving ? "Salvando..." : "Salvar no seed.json"}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={handleExport}
+                      tooltip="Exportar JSON"
+                    >
+                      <Download />
+                      <span>Exportar JSON</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => document.getElementById("import-json-input")?.click()}
+                      tooltip="Importar JSON"
+                    >
+                      <Upload />
+                      <span>Importar JSON</span>
+                    </SidebarMenuButton>
+                    <input
+                      id="import-json-input"
+                      type="file"
+                      accept=".json"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                  </SidebarMenuItem>
+                </>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

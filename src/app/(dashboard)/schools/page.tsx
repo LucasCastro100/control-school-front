@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, X } from "lucide-react"
+import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, X, LoaderCircle, CheckCircle2, XCircle } from "lucide-react"
+import { toast } from "sonner"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,6 +33,8 @@ import { SearchableSelect } from "@/components/ui/searchable-select"
 import type { School, Orientador, TbrCategory } from "@/lib/types"
 import {
   getSchools,
+  getSchoolsByYear,
+  getSchoolYears,
   createSchool,
   updateSchool,
   deleteSchool,
@@ -53,6 +56,8 @@ export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([])
   const [open, setOpen] = useState(false)
   const [editingSchool, setEditingSchool] = useState<School | null>(null)
+  const [filterYear, setFilterYear] = useState("")
+  const [filterActive, setFilterActive] = useState("active")
   const [name, setName] = useState("")
   const [address, setAddress] = useState("")
   const [region, setRegion] = useState("")
@@ -63,6 +68,7 @@ export default function SchoolsPage() {
   const [orientadores, setOrientadores] = useState<Orientador[]>([])
   const [tbrCategories, setTbrCategories] = useState<TbrCategory[]>([])
   const [teams, setTeams] = useState<{ id: string; categoryId: string; name: string }[]>([])
+  const [active, setActive] = useState(true)
   const [teamCategoryId, setTeamCategoryId] = useState("")
   const [teamName, setTeamName] = useState("")
 
@@ -71,6 +77,8 @@ export default function SchoolsPage() {
   const [loadingStates, setLoadingStates] = useState(false)
   const [loadingCities, setLoadingCities] = useState(false)
 
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [filterState, setFilterState] = useState("")
   const [filterOrientadorId, setFilterOrientadorId] = useState("")
   const [page, setPage] = useState(1)
@@ -99,7 +107,7 @@ export default function SchoolsPage() {
       stats[school.id] = { classes: classes.length, students, teams: teamsCount }
     }
     setSchoolStats(stats)
-  }, [])
+  }, [filterYear])
 
   useEffect(() => {
     setHeader(
@@ -117,8 +125,10 @@ export default function SchoolsPage() {
   }, [])
 
   const filteredSchools = schools
+    .filter((s) => !filterYear || new Date(s.createdAt).getFullYear().toString() === filterYear)
     .filter((s) => !filterState || s.state === filterState)
     .filter((s) => !filterOrientadorId || s.orientadorId === filterOrientadorId)
+    .filter((s) => filterActive === "all" || (filterActive === "active" ? s.active !== false : s.active === false))
 
   const totalPages = Math.ceil(filteredSchools.length / pageSize)
   const paginatedSchools = filteredSchools.slice(
@@ -128,7 +138,7 @@ export default function SchoolsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [filterState, filterOrientadorId, pageSize])
+  }, [filterYear, filterState, filterOrientadorId, filterActive, pageSize])
 
   function refresh() {
     const allSchools = getSchools()
@@ -159,6 +169,7 @@ export default function SchoolsPage() {
       setCity("")
       setColor("")
       setOrientadorId("")
+      setActive(true)
       setStateOptions([])
       setCityOptions([])
       setTeams([])
@@ -222,6 +233,7 @@ export default function SchoolsPage() {
     setAddress(school.address)
     setColor(school.color ?? "")
     setOrientadorId(school.orientadorId ?? "")
+    setActive(school.active !== false)
     setTeams(
       getTbrTeamsBySchool(school.id).map((t) => ({
         id: t.id,
@@ -261,43 +273,55 @@ export default function SchoolsPage() {
 
   function handleSave() {
     if (!name.trim()) return
-    let schoolId: string
-    if (editingSchool) {
-      updateSchool(editingSchool.id, {
-        name: name.trim(),
-        address: address.trim(),
-        region,
-        state,
-        city,
-        color: color || undefined,
-        orientadorId: orientadorId || undefined,
-      })
-      schoolId = editingSchool.id
-    } else {
-      const created = createSchool({
-        name: name.trim(),
-        address: address.trim(),
-        region,
-        state,
-        city,
-        color: color || undefined,
-        orientadorId: orientadorId || undefined,
-      })
-      schoolId = created.id
-    }
-    replaceTbrTeamsForSchool(
-      schoolId,
-      teams.map((t) => ({ categoryId: t.categoryId, name: t.name }))
-    )
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      let schoolId: string
+      if (editingSchool) {
+        updateSchool(editingSchool.id, {
+          name: name.trim(),
+          address: address.trim(),
+          region,
+          state,
+          city,
+          color: color || undefined,
+          orientadorId: orientadorId || undefined,
+          active,
+        })
+        schoolId = editingSchool.id
+      } else {
+        const created = createSchool({
+          name: name.trim(),
+          address: address.trim(),
+          region,
+          state,
+          city,
+          color: color || undefined,
+          orientadorId: orientadorId || undefined,
+          active,
+        })
+        schoolId = created.id
+      }
+      replaceTbrTeamsForSchool(
+        schoolId,
+        teams.map((t) => ({ categoryId: t.categoryId, name: t.name }))
+      )
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+      toast.success(editingSchool ? "Escola editada com sucesso!" : "Escola criada com sucesso!")
+    }, 0)
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Tem certeza que deseja excluir esta escola?")) {
-      deleteSchool(id)
-      refresh()
-    }
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteSchool(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
+    toast.success("Escola excluída com sucesso!")
   }
 
   const allStates = Array.from(new Set(schools.map((s) => s.state).filter(Boolean)))
@@ -354,6 +378,20 @@ export default function SchoolsPage() {
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-sm">Ativa</Label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={active}
+                onClick={() => setActive(!active)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${active ? "bg-primary" : "bg-input"}`}
+              >
+                <span
+                  className={`inline-block size-5 rounded-full bg-white transition-transform ${active ? "translate-x-[22px]" : "translate-x-[2px]"}`}
+                />
+              </button>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-2">
@@ -461,14 +499,65 @@ export default function SchoolsPage() {
                 </div>
               )}
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingSchool ? "Salvar" : "Criar"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir <strong>{deleteTarget?.label}</strong>?
+            {deleteTarget && (() => {
+              const count = getClassesBySchool(deleteTarget.id).length
+              return count > 0 ? (
+                <> Esta ação irá remover também {count} turma{count > 1 ? "s" : ""}, salas, alunos e horários vinculados.</>
+              ) : null
+            })()}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm whitespace-nowrap">Ano:</Label>
+          <SearchableSelect
+            options={[
+              { value: "", label: "Todos os anos" },
+              ...getSchoolYears().map((y) => ({ value: y, label: y })),
+            ]}
+            value={filterYear}
+            onChange={setFilterYear}
+            placeholder="Todos os anos"
+            searchPlaceholder="Buscar ano..."
+            emptyText="Nenhum ano encontrado."
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-sm whitespace-nowrap">Status:</Label>
+          <SearchableSelect
+            options={[
+              { value: "active", label: "Ativas" },
+              { value: "inactive", label: "Inativas" },
+              { value: "all", label: "Todas" },
+            ]}
+            value={filterActive}
+            onChange={(v) => v && setFilterActive(v)}
+            placeholder="Ativas"
+            searchPlaceholder=""
+            emptyText=""
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Label className="text-sm whitespace-nowrap">Filtrar por Estado:</Label>
           <SearchableSelect
@@ -543,9 +632,14 @@ export default function SchoolsPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedSchools.map((school) => (
-                    <TableRow key={school.id}>
+                    <TableRow key={school.id} className={school.active === false ? "opacity-50" : ""}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
+                          {school.active !== false ? (
+                            <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
+                          ) : (
+                            <XCircle className="size-3.5 text-muted-foreground shrink-0" />
+                          )}
                           {school.color && (
                             <span
                               className="inline-block size-3 rounded-full shrink-0"
@@ -588,7 +682,7 @@ export default function SchoolsPage() {
                           <Button
                             variant="destructive"
                             size="icon"
-                            onClick={() => handleDelete(school.id)}
+                            onClick={() => handleDelete(school.id, school.name)}
                           >
                             <Trash2 className="size-4" />
                           </Button>

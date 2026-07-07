@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Control Schools
 
-## Getting Started
+Sistema web para gerenciamento de escolas, turmas, salas, alunos, horários, itens (tapetes/tecnologias) e TBR (times por categoria).
 
-First, run the development server:
+> Controle completo de unidades escolares com suporte a múltiplos anos letivos.
+
+## Funcionalidades
+
+- **Escolas** — cadastro com endereço, região/estado/cidade, cor, orientador vinculado e equipes TBR
+- **Ano Letivo** — cada escola pertence a um ano; filtro por ano em todas as listagens (horários, itens)
+- **Turmas** — organizadas por NAP (1 a 4), com anos correspondentes (Infantil, Fundamental, Médio)
+- **Salas** — vinculadas a turmas
+- **Alunos** — cadastro por sala com nome e matrícula
+- **Horários** — grade semanal por turma/sala com disciplina, professor e horário
+- **Itens** — cadastro de tapetes e tecnologias, vínculo com NAPs e quantidades por escola
+- **Orientadores** — cadastro com região/estado/cidade
+- **TBR** — categorias e times vinculados a escolas
+- **Horário Geral** — visão consolidada de todas as escolas
+
+## Stack
+
+| Tecnologia | Versão |
+|---|---|
+| Next.js (App Router) | 16 |
+| React | 19 |
+| TypeScript | 5 |
+| Tailwind CSS | 4 |
+| shadcn/ui + Base UI | — |
+
+## Como usar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Login
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Email | Senha |
+|---|---|
+| admin@gmail.com | mudar123 |
 
-## Learn More
+## Persistência
 
-To learn more about Next.js, take a look at the following resources:
+Todos os dados ficam no **localStorage** do navegador. Não há backend nem banco de dados externo.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Na primeira vez que o sistema é aberto em um navegador novo, os dados são populados a partir do arquivo `src/data/seed.json`. As alterações feitas na aplicação são automaticamente sincronizadas com um cache em memória.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Para exportar os dados manualmente, chame `exportStorageData()` no console do navegador.

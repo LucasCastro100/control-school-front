@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, Users } from "lucide-react"
+import { Plus, Pencil, Trash2, Users, LoaderCircle } from "lucide-react"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -40,6 +40,8 @@ export default function TbrPage() {
   const [teamCounts, setTeamCounts] = useState<Record<string, number>>({})
   const [open, setOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<TbrCategory | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const { setHeader } = usePageHeader()
 
@@ -88,20 +90,28 @@ export default function TbrPage() {
 
   function handleSave() {
     if (!name.trim()) return
-    if (editingCategory) {
-      updateTbrCategory(editingCategory.id, { name: name.trim() })
-    } else {
-      createTbrCategory({ name: name.trim() })
-    }
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      if (editingCategory) {
+        updateTbrCategory(editingCategory.id, { name: name.trim() })
+      } else {
+        createTbrCategory({ name: name.trim() })
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+    }, 0)
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Tem certeza que deseja excluir esta categoria? As equipes cadastradas nela também serão removidas.")) {
-      deleteTbrCategory(id)
-      refresh()
-    }
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteTbrCategory(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
   }
 
   return (
@@ -123,9 +133,26 @@ export default function TbrPage() {
                 placeholder="Ex: Sub-10, Sub-14"
               />
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingCategory ? "Salvar" : "Criar"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir a categoria <strong>{deleteTarget?.label}</strong>?
+            As equipes cadastradas nela também serão removidas.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -166,13 +193,13 @@ export default function TbrPage() {
                         >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleDelete(category.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => handleDelete(category.id, category.name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                       </div>
                     </TableCell>
                   </TableRow>

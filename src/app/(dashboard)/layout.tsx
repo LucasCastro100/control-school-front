@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { getAuthUser } from "@/lib/db"
+import { getAuthUser, initStorage } from "@/lib/db"
 import { PageHeaderProvider, usePageHeader } from "@/lib/page-header"
 import type { AuthUser } from "@/lib/types"
 
@@ -32,6 +32,7 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    initStorage()
     const u = getAuthUser()
     if (!u) {
       router.push("/login")

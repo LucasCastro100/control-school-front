@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
+import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -25,7 +26,14 @@ export default function RootLayout({
       className={`${nunito.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col">
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          {children}
+          <Toaster
+            richColors
+            closeButton
+            position="bottom-right"
+          />
+        </TooltipProvider>
       </body>
     </html>
   );

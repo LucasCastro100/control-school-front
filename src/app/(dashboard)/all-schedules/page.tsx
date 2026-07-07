@@ -10,10 +10,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import type { DayOfWeek } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
   getSchools,
+  getSchoolsByYear,
+  getSchoolYears,
   getClasses,
   getRooms,
   getSchedules,
@@ -46,6 +49,7 @@ export default function AllSchedulesPage() {
   const [groupedByDay, setGroupedByDay] = useState<
     { day: DayOfWeek; schedules: ScheduleEntry[] }[]
   >([])
+  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function AllSchedulesPage() {
   }, [])
 
   useEffect(() => {
-    const schools = getSchools()
+    const schools = getSchoolsByYear(filterYear)
     const allClasses = getClasses()
     const allRooms = getRooms()
     const allSchedules = getSchedules()
@@ -102,7 +106,7 @@ export default function AllSchedulesPage() {
 
     setGroupedByDay(grouped)
     setLoading(false)
-  }, [])
+  }, [filterYear])
 
   if (loading) {
     return (
@@ -116,18 +120,47 @@ export default function AllSchedulesPage() {
 
   if (!hasAny) {
     return (
-      <Card>
-        <CardContent className="py-12">
-          <p className="text-center text-muted-foreground">
-            Nenhum horário cadastrado em nenhuma escola.
-          </p>
-        </CardContent>
-      </Card>
+      <>
+        <div className="mb-4">
+          <SearchableSelect
+            options={[
+              ...getSchoolYears().map((y) => ({ value: y, label: y })),
+              { value: String(new Date().getFullYear()), label: String(new Date().getFullYear()) },
+            ].filter((opt, i, arr) => arr.findIndex((o) => o.value === opt.value) === i)}
+            value={filterYear}
+            onChange={(v) => v && setFilterYear(v)}
+            placeholder="Selecione o ano"
+            searchPlaceholder="Buscar ano..."
+            emptyText="Nenhum ano encontrado."
+          />
+        </div>
+        <Card>
+          <CardContent className="py-12">
+            <p className="text-center text-muted-foreground">
+              Nenhum horário cadastrado para {filterYear} em nenhuma escola.
+            </p>
+          </CardContent>
+        </Card>
+      </>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <>
+      <div className="mb-4">
+        <SearchableSelect
+          options={[
+            ...getSchoolYears().map((y) => ({ value: y, label: y })),
+            { value: String(new Date().getFullYear()), label: String(new Date().getFullYear()) },
+          ].filter((opt, i, arr) => arr.findIndex((o) => o.value === opt.value) === i)}
+          value={filterYear}
+          onChange={(v) => v && setFilterYear(v)}
+          placeholder="Selecione o ano"
+          searchPlaceholder="Buscar ano..."
+          emptyText="Nenhum ano encontrado."
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {groupedByDay.map(({ day, schedules }, idx) => {
         if (schedules.length === 0) return null
 
@@ -180,5 +213,6 @@ export default function AllSchedulesPage() {
         )
       })}
     </div>
+    </>
   )
 }

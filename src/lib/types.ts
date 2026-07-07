@@ -7,6 +7,7 @@ export interface School {
   city: string
   color?: string
   orientadorId?: string
+  active?: boolean
   createdAt: string
 }
 

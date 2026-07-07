@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, UserRoundCog } from "lucide-react"
+import { Plus, Pencil, Trash2, UserRoundCog, LoaderCircle } from "lucide-react"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,6 +41,8 @@ export default function OrientadoresPage() {
   const [orientadores, setOrientadores] = useState<Orientador[]>([])
   const [open, setOpen] = useState(false)
   const [editingOrientador, setEditingOrientador] = useState<Orientador | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [region, setRegion] = useState("")
@@ -163,32 +165,40 @@ export default function OrientadoresPage() {
 
   function handleSave() {
     if (!name.trim()) return
-    if (editingOrientador) {
-      updateOrientador(editingOrientador.id, {
-        name: name.trim(),
-        email: email.trim(),
-        region,
-        state,
-        city,
-      })
-    } else {
-      createOrientador({
-        name: name.trim(),
-        email: email.trim(),
-        region,
-        state,
-        city,
-      })
-    }
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      if (editingOrientador) {
+        updateOrientador(editingOrientador.id, {
+          name: name.trim(),
+          email: email.trim(),
+          region,
+          state,
+          city,
+        })
+      } else {
+        createOrientador({
+          name: name.trim(),
+          email: email.trim(),
+          region,
+          state,
+          city,
+        })
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+    }, 0)
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Tem certeza que deseja excluir este orientador?")) {
-      deleteOrientador(id)
-      refresh()
-    }
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteOrientador(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
   }
 
   return (
@@ -259,9 +269,26 @@ export default function OrientadoresPage() {
                 />
               </div>
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingOrientador ? "Salvar" : "Criar"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir o orientador <strong>{deleteTarget?.label}</strong>?
+            Esta ação irá remover o vínculo com escolas associadas.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -304,13 +331,13 @@ export default function OrientadoresPage() {
                         >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleDelete(orientador.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => handleDelete(orientador.id, orientador.name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                       </div>
                     </TableCell>
                   </TableRow>

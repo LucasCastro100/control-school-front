@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use } from "react"
-import { Plus, Pencil, Trash2, Users, DoorOpen } from "lucide-react"
+import { Plus, Pencil, Trash2, Users, DoorOpen, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -51,6 +51,8 @@ export default function RoomsPage({
   const [rooms, setRooms] = useState<Room[]>([])
   const [open, setOpen] = useState(false)
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const { setHeader } = usePageHeader()
 
@@ -96,20 +98,28 @@ export default function RoomsPage({
 
   function handleSave() {
     if (!name.trim()) return
-    if (editingRoom) {
-      updateRoom(editingRoom.id, { name: name.trim() })
-    } else {
-      createRoom({ classId, name: name.trim() })
-    }
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      if (editingRoom) {
+        updateRoom(editingRoom.id, { name: name.trim() })
+      } else {
+        createRoom({ classId, name: name.trim() })
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+    }, 0)
   }
 
-  function handleDelete(roomId: string) {
-    if (confirm("Tem certeza que deseja excluir esta sala?")) {
-      deleteRoom(roomId)
-      refresh()
-    }
+  function handleDelete(roomId: string, label: string) {
+    setDeleteTarget({ id: roomId, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteRoom(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
   }
 
   return (
@@ -149,9 +159,26 @@ export default function RoomsPage({
                 placeholder="Ex: 1A, 1B"
               />
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingRoom ? "Salvar" : "Criar"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir a sala <strong>{deleteTarget?.label}</strong>?
+            Esta ação irá remover também alunos e horários vinculados.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -195,13 +222,13 @@ export default function RoomsPage({
                         >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleDelete(room.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => handleDelete(room.id, room.name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                       </div>
                     </TableCell>
                   </TableRow>

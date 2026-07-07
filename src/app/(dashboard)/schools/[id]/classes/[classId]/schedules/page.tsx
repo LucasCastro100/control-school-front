@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use } from "react"
-import { Plus, Pencil, Trash2, Calendar } from "lucide-react"
+import { Plus, Pencil, Trash2, Calendar, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -68,6 +68,8 @@ export default function SchedulesPage({
   const [open, setOpen] = useState(false)
   const [editingSchedule, setEditingSchedule] =
     useState<Schedule | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [formRoom, setFormRoom] = useState("")
   const [dayOfWeek, setDayOfWeek] = useState("0")
   const [startTime, setStartTime] = useState("")
@@ -110,6 +112,13 @@ export default function SchedulesPage({
     setSelectedRoom(value)
   }
 
+  function confirmDeleteSchedule() {
+    if (!deleteTarget) return
+    deleteSchedule(deleteTarget.id)
+    setDeleteTarget(null)
+    refresh()
+  }
+
   function handleOpenChange(open: boolean) {
     setOpen(open)
     if (!open) {
@@ -139,22 +148,26 @@ export default function SchedulesPage({
   function handleSave() {
     if (!startTime || !endTime || !subject.trim() || !teacher.trim() || !formRoom)
       return
-    const data = {
-      classId,
-      roomId: formRoom,
-      dayOfWeek: Number(dayOfWeek),
-      startTime,
-      endTime,
-      subject: subject.trim(),
-      teacher: teacher.trim(),
-    }
-    if (editingSchedule) {
-      updateSchedule(editingSchedule.id, data)
-    } else {
-      createSchedule(data)
-    }
-    handleOpenChange(false)
-    refresh()
+    setSaving(true)
+    setTimeout(() => {
+      const data = {
+        classId,
+        roomId: formRoom,
+        dayOfWeek: Number(dayOfWeek),
+        startTime,
+        endTime,
+        subject: subject.trim(),
+        teacher: teacher.trim(),
+      }
+      if (editingSchedule) {
+        updateSchedule(editingSchedule.id, data)
+      } else {
+        createSchedule(data)
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      refresh()
+    }, 0)
   }
 
   const groupedSchedules = DAYS_OF_WEEK.map((_, idx) => ({
@@ -300,12 +313,28 @@ export default function SchedulesPage({
                   placeholder="Nome do professor"
                 />
               </div>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving && <LoaderCircle className="size-4 animate-spin" />}
                 {editingSchedule ? "Salvar" : "Criar"}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir o horário <strong>{deleteTarget?.label}</strong>?
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDeleteSchedule}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {!selectedRoom ? (
         <Card>
@@ -377,16 +406,7 @@ export default function SchedulesPage({
                             variant="ghost"
                             size="icon"
                             className="size-8"
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  "Excluir este horário?"
-                                )
-                              ) {
-                                deleteSchedule(schedule.id)
-                                refresh()
-                              }
-                            }}
+                            onClick={() => setDeleteTarget({ id: schedule.id, label: `${schedule.subject} (${schedule.startTime}-${schedule.endTime})` })}
                           >
                             <Trash2 className="size-3" />
                           </Button>

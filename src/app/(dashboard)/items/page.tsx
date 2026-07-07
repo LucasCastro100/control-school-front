@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { Plus, Pencil, Trash2, Package, X } from "lucide-react"
+import { Plus, Pencil, Trash2, Package, X, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -26,6 +26,7 @@ import {
   updateItem,
   deleteItem,
   getSchools,
+  getSchoolsByYear,
   getNapItems,
   getAllNapItems,
 } from "@/lib/db"
@@ -61,6 +62,9 @@ function ItemsContent() {
   const [itemName, setItemName] = useState("")
   const [itemCategory, setItemCategory] = useState("")
   const [itemNaps, setItemNaps] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
+  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
   const [filterSchoolId, setFilterSchoolId] = useState(searchParams.get("schoolId") || "")
   const [filterNap, setFilterNap] = useState("")
   const { setHeader } = usePageHeader()
@@ -123,20 +127,28 @@ function ItemsContent() {
 
   function handleSave() {
     if (!itemName.trim() || !itemCategory) return
-    if (editingItem) {
-      updateItem(editingItem.id, { name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
-    } else {
-      createItem({ name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
-    }
-    handleOpenChange(false)
-    setItems(getAllItems())
+    setSaving(true)
+    setTimeout(() => {
+      if (editingItem) {
+        updateItem(editingItem.id, { name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
+      } else {
+        createItem({ name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
+      }
+      handleOpenChange(false)
+      setSaving(false)
+      setItems(getAllItems())
+    }, 0)
   }
 
-  function handleDelete(itemId: string) {
-    if (confirm("Tem certeza que deseja excluir este item?")) {
-      deleteItem(itemId)
-      setItems(getAllItems())
-    }
+  function handleDelete(itemId: string, label: string) {
+    setDeleteTarget({ id: itemId, label })
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    deleteItem(deleteTarget.id)
+    setDeleteTarget(null)
+    setItems(getAllItems())
   }
 
   function toggleNap(nap: string) {
@@ -155,9 +167,11 @@ function ItemsContent() {
     ? items.filter((i) => assignedItemIds.has(i.id))
     : items
 
+  const filteredSchools = schools.filter((s) => new Date(s.createdAt).getFullYear().toString() === filterYear)
+
   const schoolOptions = [
     { value: "", label: "Selecione uma escola" },
-    ...schools.map((s) => ({ value: s.id, label: s.name })),
+    ...filteredSchools.map((s) => ({ value: s.id, label: `${s.name} (${new Date(s.createdAt).getFullYear()})` })),
   ]
 
   function totalSchools(itemId: string): number {
@@ -220,14 +234,47 @@ function ItemsContent() {
                 ))}
               </div>
             </div>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingItem ? "Salvar" : "Criar"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <div className="flex items-center gap-4 mb-6">
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir o item <strong>{deleteTarget?.label}</strong>?
+            Esta ação irá remover também os vínculos com escolas.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm whitespace-nowrap">Ano:</Label>
+          <SearchableSelect
+            options={Array.from({ length: 8 }, (_, i) => String(Number(new Date().getFullYear()) - 5 + i)).map((y) => ({ value: y, label: y }))}
+            value={filterYear}
+            onChange={(v) => {
+              if (v) {
+                setFilterYear(v)
+                setFilterSchoolId("")
+              }
+            }}
+            placeholder="Selecione o ano"
+            searchPlaceholder="Buscar ano..."
+            emptyText="Nenhum ano encontrado."
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Label className="text-sm whitespace-nowrap">Escola:</Label>
           <SearchableSelect
@@ -288,7 +335,7 @@ function ItemsContent() {
                       <Button variant="outline" size="icon" className="size-7" onClick={() => handleEdit(item)}>
                         <Pencil className="size-3" />
                       </Button>
-                      <Button variant="destructive" size="icon" className="size-7" onClick={() => handleDelete(item.id)}>
+                      <Button variant="destructive" size="icon" className="size-7" onClick={() => handleDelete(item.id, item.name)}>
                         <Trash2 className="size-3" />
                       </Button>
                     </div>
@@ -332,7 +379,7 @@ function ItemsContent() {
                       <Button variant="outline" size="icon" className="size-7" onClick={() => handleEdit(item)}>
                         <Pencil className="size-3" />
                       </Button>
-                      <Button variant="destructive" size="icon" className="size-7" onClick={() => handleDelete(item.id)}>
+                      <Button variant="destructive" size="icon" className="size-7" onClick={() => handleDelete(item.id, item.name)}>
                         <Trash2 className="size-3" />
                       </Button>
                     </div>

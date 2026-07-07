@@ -1,4 +1,5 @@
 import type { School, Class, Room, Student, Schedule, AuthUser, SegmentConfig, Item, NapItem, Orientador, TbrCategory, TbrTeam } from "./types"
+import seedData from "@/data/seed.json"
 
 const STORAGE_KEYS = {
   schools: "control-schools:schools",
@@ -14,11 +15,46 @@ const STORAGE_KEYS = {
   tbrTeams: "control-schools:tbr-teams",
 } as const
 
+const runtimeCache: Record<string, unknown[]> = { ...seedData }
+
+export function initStorage(): void {
+  if (typeof window === "undefined") return
+  for (const key of Object.keys(runtimeCache)) {
+    const existing = localStorage.getItem(key)
+    if (!existing) {
+      localStorage.setItem(key, JSON.stringify(runtimeCache[key]))
+    } else {
+      runtimeCache[key] = JSON.parse(existing)
+    }
+  }
+}
+
+export function exportStorageData(): Record<string, unknown[]> {
+  return { ...runtimeCache }
+}
+
+export function importStorageData(data: Record<string, unknown[]>): void {
+  if (typeof window === "undefined") return
+  for (const [key, value] of Object.entries(data)) {
+    if (key in runtimeCache) {
+      localStorage.setItem(key, JSON.stringify(value))
+      runtimeCache[key] = value
+    }
+  }
+}
+
 function getItems<T>(key: string): T[] {
   if (typeof window === "undefined") return []
   try {
     const data = localStorage.getItem(key)
-    return data ? (JSON.parse(data) as T[]) : []
+    if (data) {
+      const parsed = JSON.parse(data) as T[]
+      runtimeCache[key] = parsed as unknown[]
+      return parsed
+    }
+    const fallback = (runtimeCache[key] ?? []) as T[]
+    localStorage.setItem(key, JSON.stringify(fallback))
+    return fallback
   } catch {
     return []
   }
@@ -27,6 +63,7 @@ function getItems<T>(key: string): T[] {
 function setItems<T>(key: string, items: T[]): void {
   if (typeof window === "undefined") return
   localStorage.setItem(key, JSON.stringify(items))
+  runtimeCache[key] = items as unknown[]
 }
 
 function generateId(): string {
@@ -36,6 +73,15 @@ function generateId(): string {
 // Schools
 export function getSchools(): School[] {
   return getItems<School>(STORAGE_KEYS.schools)
+}
+
+export function getSchoolsByYear(year: string): School[] {
+  return getSchools().filter((s) => new Date(s.createdAt).getFullYear().toString() === year)
+}
+
+export function getSchoolYears(): string[] {
+  const years = new Set(getSchools().map((s) => new Date(s.createdAt).getFullYear().toString()).filter(Boolean))
+  return Array.from(years).sort()
 }
 
 export function getSchool(id: string): School | undefined {
