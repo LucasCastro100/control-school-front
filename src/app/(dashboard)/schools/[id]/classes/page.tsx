@@ -31,6 +31,7 @@ import type { Class, School, Item, NapItem } from "@/lib/types"
 import {
   getSchool,
   getClassesBySchool,
+  getClassesBySchoolAndYear,
   createClass,
   updateClass,
   deleteClass,
@@ -38,8 +39,10 @@ import {
   getStudentsByRoom,
   getAllItems,
   getNapItems,
+  getNapItemsBySchoolAndYear,
   upsertNapItem,
   deleteNapItem,
+  getAcademicYears,
 } from "@/lib/db"
 
 interface YearOption {
@@ -81,10 +84,12 @@ export default function ClassesPage() {
   const router = useRouter()
   const [school, setSchool] = useState<School | null>(null)
   const [classes, setClasses] = useState<Class[]>([])
+  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
+  const [availableYears, setAvailableYears] = useState<string[]>([])
   const [open, setOpen] = useState(false)
   const [editingClass, setEditingClass] = useState<Class | null>(null)
   const [segmento, setSegmento] = useState("")
-  const [year, setYear] = useState("")
+  const [classYear, setClassYear] = useState("")
   const [name, setName] = useState("")
   const [classStats, setClassStats] = useState<
     Record<string, { rooms: number; students: number; biggestRoom: string }>
@@ -99,15 +104,23 @@ export default function ClassesPage() {
   const [itemQuantities, setItemQuantities] = useState<Record<string, string>>({})
   const { setHeader } = usePageHeader()
 
+  const academicYears = getAcademicYears()
+
   useEffect(() => {
     setSchool(getSchool(id) ?? null)
     setItems(getAllItems())
-    setNapItems(getNapItems(id))
-    loadData()
+    setAvailableYears(academicYears)
+    if (!academicYears.includes(filterYear)) {
+      setFilterYear(academicYears[0] || String(new Date().getFullYear()))
+    }
   }, [id])
 
+  useEffect(() => {
+    loadData()
+  }, [filterYear])
+
   function loadData() {
-    const classList = getClassesBySchool(id)
+    const classList = getClassesBySchoolAndYear(id, filterYear)
     setClasses(classList)
 
     const stats: Record<string, { rooms: number; students: number; biggestRoom: string }> = {}
@@ -127,6 +140,7 @@ export default function ClassesPage() {
       stats[cls.id] = { rooms: rooms.length, students, biggestRoom: biggest || "-" }
     }
     setClassStats(stats)
+    setNapItems(getNapItemsBySchoolAndYear(id, filterYear))
   }
 
   useEffect(() => {
@@ -138,25 +152,28 @@ export default function ClassesPage() {
         <h1 className="text-lg font-medium">Turmas - {school?.name}</h1>
       </div>,
       <div className="flex items-center gap-2">
-        <Link href={"/items?schoolId=" + id}>
+        <Link href={"/items?schoolId=" + id + "&year=" + filterYear}>
           <Button variant="outline" size="sm" className="gap-2">
             <Package className="size-4" />
             Items
           </Button>
         </Link>
-        <Link href={"/schools/" + id + "/schedules"}>
+        <Link href={"/schools/" + id + "/schedules?year=" + filterYear}>
           <Button variant="outline" size="sm" className="gap-2">
             <Calendar className="size-4" />
             General Schedules
           </Button>
         </Link>
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button size="sm" onClick={() => {
+          setClassYear(filterYear)
+          setOpen(true)
+        }}>
           <Plus className="size-4 mr-2" />
           Nova Turma
         </Button>
       </div>
     )
-  }, [school?.name, id])
+  }, [school?.name, id, filterYear])
 
   function refresh() {
     loadData()
@@ -168,19 +185,19 @@ export default function ClassesPage() {
     if (!open) {
       setEditingClass(null)
       setSegmento("")
-      setYear("")
+      setClassYear("")
       setName("")
     }
   }
 
   function handleSegmentoChange(value: string) {
     setSegmento(value)
-    setYear("")
+    setClassYear("")
     setName("")
   }
 
   function handleYearChange(value: string) {
-    setYear(value)
+    setClassYear(value)
     if (value) {
       setName(value)
     }
@@ -189,19 +206,21 @@ export default function ClassesPage() {
   function handleEdit(cls: Class) {
     setEditingClass(cls)
     setSegmento(cls.nap)
-    setYear("")
+    setClassYear(filterYear)
     setName(cls.name)
     setOpen(true)
   }
 
   function handleSave() {
     if (!segmento || !name.trim()) return
+    const yearValue = editingClass ? editingClass.year : classYear || filterYear
+    if (!yearValue) return
     setSaving(true)
     setTimeout(() => {
       if (editingClass) {
         updateClass(editingClass.id, { nap: segmento, name: name.trim() })
       } else {
-        createClass({ schoolId: id, nap: segmento, name: name.trim() })
+        createClass({ schoolId: id, nap: segmento, name: name.trim(), year: yearValue })
       }
       handleOpenChange(false)
       setSaving(false)
@@ -238,7 +257,7 @@ export default function ClassesPage() {
       for (const itemId of Object.keys(itemQuantities)) {
         const qty = parseInt(itemQuantities[itemId]) || 0
         if (qty > 0) {
-          upsertNapItem(id, itemSegName, itemId, qty)
+          upsertNapItem(id, itemSegName, itemId, qty, filterYear)
         } else {
           const existing = napItems.find(
             (n) => n.segmentName === itemSegName && n.itemId === itemId
@@ -246,13 +265,13 @@ export default function ClassesPage() {
           if (existing) deleteNapItem(existing.id)
         }
       }
-      setNapItems(getNapItems(id))
+      setNapItems(getNapItemsBySchoolAndYear(id, filterYear))
       setSavingItems(false)
       setItemDialog(false)
     }, 0)
   }
 
-  const yearOptions = segmento
+  const segmentYearOptions = segmento
     ? SEGMENTO_YEARS[segmento].map((y) => ({ value: y.name, label: y.name }))
     : []
 
@@ -292,6 +311,20 @@ export default function ClassesPage() {
         <span className="text-sm">{school?.name}</span>
       </div>
 
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm whitespace-nowrap">Ano Letivo:</Label>
+          <SearchableSelect
+            options={availableYears.map((y) => ({ value: y, label: y }))}
+            value={filterYear}
+            onChange={(v) => v && setFilterYear(v)}
+            placeholder="Selecione o ano"
+            searchPlaceholder="Buscar ano..."
+            emptyText="Nenhum ano encontrado."
+          />
+        </div>
+      </div>
+
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
@@ -314,8 +347,8 @@ export default function ClassesPage() {
             <div className="flex flex-col gap-2">
               <Label>Ano</Label>
               <SearchableSelect
-                options={yearOptions}
-                value={year}
+                options={segmentYearOptions}
+                value={classYear}
                 onChange={handleYearChange}
                 placeholder="Selecione o ano"
                 searchPlaceholder="Buscar ano..."
@@ -343,7 +376,7 @@ export default function ClassesPage() {
       <Dialog open={itemDialog} onOpenChange={setItemDialog}>
         <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Itens - {itemSegName}</DialogTitle>
+            <DialogTitle>Itens - {itemSegName} ({filterYear})</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 max-h-80 overflow-y-auto">
             {(() => {
@@ -415,7 +448,7 @@ export default function ClassesPage() {
         <Card>
           <CardContent className="py-8">
             <p className="text-center text-muted-foreground">
-              Nenhuma turma cadastrada.
+              Nenhuma turma cadastrada para {filterYear}.
             </p>
           </CardContent>
         </Card>
@@ -427,6 +460,7 @@ export default function ClassesPage() {
                 <TableRow>
                   <TableHead className="w-28">Segmento</TableHead>
                   <TableHead>Turma</TableHead>
+                  <TableHead className="text-center w-20">Ano Letivo</TableHead>
                   <TableHead className="text-center w-24">Qtd Salas</TableHead>
                   <TableHead className="text-center w-24">Total Alunos</TableHead>
                   <TableHead>Maior Sala</TableHead>
@@ -467,6 +501,11 @@ export default function ClassesPage() {
                         )}
                         <TableCell className="font-medium">
                           {cls.name || "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            {cls.year}
+                          </span>
                         </TableCell>
                         <TableCell className="text-center">
                           {stats?.rooms ?? 0}

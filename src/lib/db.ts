@@ -27,6 +27,40 @@ export function initStorage(): void {
       runtimeCache[key] = JSON.parse(existing)
     }
   }
+  migrateExistingData()
+}
+
+function migrateExistingData(): void {
+  const currentYear = "2026"
+  const classes = getItems<Record<string, unknown>>(STORAGE_KEYS.classes)
+  let classesChanged = false
+  for (const c of classes) {
+    if (!c.year) {
+      c.year = currentYear
+      classesChanged = true
+    }
+  }
+  if (classesChanged) setItems(STORAGE_KEYS.classes, classes)
+
+  const napItems = getItems<Record<string, unknown>>(STORAGE_KEYS.napItems)
+  let napItemsChanged = false
+  for (const n of napItems) {
+    if (!n.year) {
+      n.year = currentYear
+      napItemsChanged = true
+    }
+  }
+  if (napItemsChanged) setItems(STORAGE_KEYS.napItems, napItems)
+
+  const segConfigs = getItems<Record<string, unknown>>(STORAGE_KEYS.segmentConfigs)
+  let segChanged = false
+  for (const s of segConfigs) {
+    if (!s.year) {
+      s.year = currentYear
+      segChanged = true
+    }
+  }
+  if (segChanged) setItems(STORAGE_KEYS.segmentConfigs, segConfigs)
 }
 
 export function exportStorageData(): Record<string, unknown[]> {
@@ -80,8 +114,21 @@ export function getSchoolsByYear(year: string): School[] {
 }
 
 export function getSchoolYears(): string[] {
-  const years = new Set(getSchools().map((s) => new Date(s.createdAt).getFullYear().toString()).filter(Boolean))
+  const schoolYears = getSchools().map((s) => new Date(s.createdAt).getFullYear().toString()).filter(Boolean)
+  const classYears = getClasses().map((c) => c.year).filter(Boolean)
+  const years = new Set([...schoolYears, ...classYears])
   return Array.from(years).sort()
+}
+
+export function getAcademicYears(): string[] {
+  const classYears = getClasses().map((c) => c.year).filter(Boolean)
+  const napItemYears = getItems<NapItem>(STORAGE_KEYS.napItems).map((n) => (n as NapItem).year).filter(Boolean)
+  const years = new Set([...classYears, ...napItemYears])
+  const sorted = Array.from(years).sort()
+  if (sorted.length === 0) {
+    return [String(new Date().getFullYear())]
+  }
+  return sorted
 }
 
 export function getSchool(id: string): School | undefined {
@@ -179,6 +226,10 @@ export function getClassesBySchool(schoolId: string): Class[] {
 
 export function getClass(id: string): Class | undefined {
   return getClasses().find((c) => c.id === id)
+}
+
+export function getClassesBySchoolAndYear(schoolId: string, year: string): Class[] {
+  return getClasses().filter((c) => c.schoolId === schoolId && c.year === year)
 }
 
 export function createClass(
@@ -365,11 +416,12 @@ export function getSegmentConfig(
 export function upsertSegmentConfig(
   schoolId: string,
   segmentName: string,
-  data: { tapetes: number; kits: number }
+  data: { tapetes: number; kits: number },
+  year: string
 ): SegmentConfig {
   const all = getItems<SegmentConfig>(STORAGE_KEYS.segmentConfigs)
   const existing = all.find(
-    (s) => s.schoolId === schoolId && s.segmentName === segmentName
+    (s) => s.schoolId === schoolId && s.segmentName === segmentName && s.year === year
   )
   if (existing) {
     const updated = { ...existing, ...data }
@@ -384,6 +436,7 @@ export function upsertSegmentConfig(
     segmentName,
     tapetes: data.tapetes,
     kits: data.kits,
+    year,
   }
   setItems(STORAGE_KEYS.segmentConfigs, [...all, config])
   return config
@@ -457,27 +510,40 @@ export function getAllNapItems(): NapItem[] {
   return getItems<NapItem>(STORAGE_KEYS.napItems)
 }
 
+export function getNapItemsBySchoolAndYear(schoolId: string, year: string): NapItem[] {
+  return getItems<NapItem>(STORAGE_KEYS.napItems).filter(
+    (n) => n.schoolId === schoolId && n.year === year
+  )
+}
+
 export function getNapItemsBySegment(
   schoolId: string,
-  segmentName: string
+  segmentName: string,
+  year?: string
 ): NapItem[] {
-  return getItems<NapItem>(STORAGE_KEYS.napItems).filter(
+  let items = getItems<NapItem>(STORAGE_KEYS.napItems).filter(
     (n) => n.schoolId === schoolId && n.segmentName === segmentName
   )
+  if (year) {
+    items = items.filter((n) => n.year === year)
+  }
+  return items
 }
 
 export function upsertNapItem(
   schoolId: string,
   segmentName: string,
   itemId: string,
-  quantity: number
+  quantity: number,
+  year: string
 ): NapItem {
   const all = getItems<NapItem>(STORAGE_KEYS.napItems)
   const existing = all.find(
     (n) =>
       n.schoolId === schoolId &&
       n.segmentName === segmentName &&
-      n.itemId === itemId
+      n.itemId === itemId &&
+      n.year === year
   )
   if (existing) {
     const updated = { ...existing, quantity }
@@ -492,6 +558,7 @@ export function upsertNapItem(
     segmentName,
     itemId,
     quantity,
+    year,
   }
   setItems(STORAGE_KEYS.napItems, [...all, napItem])
   return napItem
@@ -507,6 +574,13 @@ export function deleteNapItem(id: string): void {
 export function deleteNapItemsBySchool(schoolId: string): void {
   const all = getItems<NapItem>(STORAGE_KEYS.napItems).filter(
     (n) => n.schoolId !== schoolId
+  )
+  setItems(STORAGE_KEYS.napItems, all)
+}
+
+export function deleteNapItemsBySchoolAndYear(schoolId: string, year: string): void {
+  const all = getItems<NapItem>(STORAGE_KEYS.napItems).filter(
+    (n) => n.schoolId !== schoolId || n.year !== year
   )
   setItems(STORAGE_KEYS.napItems, all)
 }

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { use } from "react"
+import { useSearchParams } from "next/navigation"
 import { ArrowLeft, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,14 +13,17 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
 import type { School, DayOfWeek } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
   getSchool,
-  getClassesBySchool,
+  getClassesBySchoolAndYear,
   getRooms,
   getSchedulesByClass,
+  getAcademicYears,
 } from "@/lib/db"
 
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -47,13 +51,34 @@ export default function GeneralSchedulesPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  return (
+    <Suspense fallback={null}>
+      <GeneralSchedulesContent params={params} />
+    </Suspense>
+  )
+}
+
+function GeneralSchedulesContent({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = use(params)
+  const searchParams = useSearchParams()
   const [school, setSchool] = useState<School | null>(null)
   const [groupedByDay, setGroupedByDay] = useState<
     { day: DayOfWeek; schedules: ScheduleEntry[] }[]
   >([])
   const [loading, setLoading] = useState(true)
+  const [filterYear, setFilterYear] = useState(searchParams.get("year") || String(new Date().getFullYear()))
   const { setHeader } = usePageHeader()
+
+  const academicYears = getAcademicYears()
+
+  useEffect(() => {
+    const schoolData = getSchool(id)
+    setSchool(schoolData ?? null)
+  }, [id])
 
   useEffect(() => {
     const schoolData = getSchool(id)
@@ -62,7 +87,7 @@ export default function GeneralSchedulesPage({
     if (schoolData) {
       const allRooms = getRooms()
       const roomMap = new Map(allRooms.map((r) => [r.id, r]))
-      const classList = getClassesBySchool(id)
+      const classList = getClassesBySchoolAndYear(id, filterYear)
 
       const entries: ScheduleEntry[] = []
 
@@ -93,7 +118,7 @@ export default function GeneralSchedulesPage({
     }
 
     setLoading(false)
-  }, [id])
+  }, [id, filterYear])
 
   useEffect(() => {
     setHeader(
@@ -144,11 +169,25 @@ export default function GeneralSchedulesPage({
         <span className="text-sm">Horários Gerais</span>
       </div>
 
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm whitespace-nowrap">Ano Letivo:</Label>
+          <SearchableSelect
+            options={academicYears.map((y) => ({ value: y, label: y }))}
+            value={filterYear}
+            onChange={(v) => v && setFilterYear(v)}
+            placeholder="Selecione o ano"
+            searchPlaceholder="Buscar ano..."
+            emptyText="Nenhum ano encontrado."
+          />
+        </div>
+      </div>
+
       {!hasAny ? (
         <Card>
           <CardContent className="py-12">
             <p className="text-center text-muted-foreground">
-              Nenhum horário cadastrado nas turmas desta escola.
+              Nenhum horário cadastrado para {filterYear} nesta escola.
             </p>
           </CardContent>
         </Card>

@@ -31,6 +31,7 @@ export interface Class {
   schoolId: string
   nap: string
   name: string
+  year: string
   createdAt: string
 }
 
@@ -66,6 +67,7 @@ export interface SegmentConfig {
   segmentName: string
   tapetes: number
   kits: number
+  year: string
 }
 
 export interface Item {
@@ -82,6 +84,7 @@ export interface NapItem {
   segmentName: string
   itemId: string
   quantity: number
+  year: string
 }
 
 export interface TbrCategory {

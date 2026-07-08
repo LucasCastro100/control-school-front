@@ -28,7 +28,9 @@ import {
   getSchools,
   getSchoolsByYear,
   getNapItems,
+  getNapItemsBySchoolAndYear,
   getAllNapItems,
+  getAcademicYears,
 } from "@/lib/db"
 
 const CATEGORY_OPTIONS = [
@@ -64,27 +66,30 @@ function ItemsContent() {
   const [itemNaps, setItemNaps] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
-  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
+  const [filterYear, setFilterYear] = useState(searchParams.get("year") || String(new Date().getFullYear()))
   const [filterSchoolId, setFilterSchoolId] = useState(searchParams.get("schoolId") || "")
   const [filterNap, setFilterNap] = useState("")
   const { setHeader } = usePageHeader()
 
+  const academicYears = getAcademicYears()
+
   useEffect(() => {
     setItems(getAllItems())
     setSchools(getSchools())
-    setAllNapItems(getNapItems(filterSchoolId || "_"))
     setGlobalNapItems(getAllNapItems())
     const sId = searchParams.get("schoolId")
     if (sId) setFilterSchoolId(sId)
+    const y = searchParams.get("year")
+    if (y) setFilterYear(y)
   }, [])
 
   useEffect(() => {
     if (filterSchoolId) {
-      setAllNapItems(getNapItems(filterSchoolId))
+      setAllNapItems(getNapItemsBySchoolAndYear(filterSchoolId, filterYear))
     } else {
       setAllNapItems([])
     }
-  }, [filterSchoolId])
+  }, [filterSchoolId, filterYear])
 
   useEffect(() => {
     setHeader(
@@ -167,11 +172,9 @@ function ItemsContent() {
     ? items.filter((i) => assignedItemIds.has(i.id))
     : items
 
-  const filteredSchools = schools.filter((s) => new Date(s.createdAt).getFullYear().toString() === filterYear)
-
   const schoolOptions = [
     { value: "", label: "Selecione uma escola" },
-    ...filteredSchools.map((s) => ({ value: s.id, label: `${s.name} (${new Date(s.createdAt).getFullYear()})` })),
+    ...schools.map((s) => ({ value: s.id, label: s.name })),
   ]
 
   function totalSchools(itemId: string): number {
@@ -262,7 +265,7 @@ function ItemsContent() {
         <div className="flex items-center gap-2">
           <Label className="text-sm whitespace-nowrap">Ano:</Label>
           <SearchableSelect
-            options={Array.from({ length: 8 }, (_, i) => String(Number(new Date().getFullYear()) - 5 + i)).map((y) => ({ value: y, label: y }))}
+            options={academicYears.map((y) => ({ value: y, label: y }))}
             value={filterYear}
             onChange={(v) => {
               if (v) {

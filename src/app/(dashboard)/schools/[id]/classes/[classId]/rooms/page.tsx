@@ -68,7 +68,7 @@ export default function RoomsPage({
         <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 ring-1 ring-primary/20">
           <DoorOpen className="size-4 text-primary" />
         </div>
-        <h1 className="text-lg font-medium">Salas - {cls?.name}</h1>
+        <h1 className="text-lg font-medium">Salas - {cls?.name} {cls?.year ? `(${cls.year})` : ""}</h1>
       </div>,
       <Button size="sm" onClick={() => setOpen(true)}>
         <Plus className="size-4 mr-2" />

@@ -39,6 +39,7 @@ import {
   updateSchool,
   deleteSchool,
   getClassesBySchool,
+  getClasses,
   getRoomsByClass,
   getStudentsByRoom,
   getOrientadores,
@@ -124,8 +125,12 @@ export default function SchoolsPage() {
     )
   }, [])
 
+  const schoolsByAcademicYear = filterYear
+    ? new Set(getClasses().filter((c) => c.year === filterYear).map((c) => c.schoolId))
+    : null
+
   const filteredSchools = schools
-    .filter((s) => !filterYear || new Date(s.createdAt).getFullYear().toString() === filterYear)
+    .filter((s) => !schoolsByAcademicYear || schoolsByAcademicYear.has(s.id))
     .filter((s) => !filterState || s.state === filterState)
     .filter((s) => !filterOrientadorId || s.orientadorId === filterOrientadorId)
     .filter((s) => filterActive === "all" || (filterActive === "active" ? s.active !== false : s.active === false))

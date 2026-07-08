@@ -15,11 +15,10 @@ import type { DayOfWeek } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
   getSchools,
-  getSchoolsByYear,
-  getSchoolYears,
   getClasses,
   getRooms,
   getSchedules,
+  getAcademicYears,
 } from "@/lib/db"
 
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -52,6 +51,8 @@ export default function AllSchedulesPage() {
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
   const { setHeader } = usePageHeader()
 
+  const academicYears = getAcademicYears()
+
   useEffect(() => {
     setHeader(
       <div className="flex items-center gap-3">
@@ -65,8 +66,8 @@ export default function AllSchedulesPage() {
   }, [])
 
   useEffect(() => {
-    const schools = getSchoolsByYear(filterYear)
-    const allClasses = getClasses()
+    const schools = getSchools()
+    const allClasses = getClasses().filter((c) => c.year === filterYear)
     const allRooms = getRooms()
     const allSchedules = getSchedules()
 
@@ -123,10 +124,7 @@ export default function AllSchedulesPage() {
       <>
         <div className="mb-4">
           <SearchableSelect
-            options={[
-              ...getSchoolYears().map((y) => ({ value: y, label: y })),
-              { value: String(new Date().getFullYear()), label: String(new Date().getFullYear()) },
-            ].filter((opt, i, arr) => arr.findIndex((o) => o.value === opt.value) === i)}
+            options={academicYears.map((y) => ({ value: y, label: y }))}
             value={filterYear}
             onChange={(v) => v && setFilterYear(v)}
             placeholder="Selecione o ano"
@@ -149,10 +147,7 @@ export default function AllSchedulesPage() {
     <>
       <div className="mb-4">
         <SearchableSelect
-          options={[
-            ...getSchoolYears().map((y) => ({ value: y, label: y })),
-            { value: String(new Date().getFullYear()), label: String(new Date().getFullYear()) },
-          ].filter((opt, i, arr) => arr.findIndex((o) => o.value === opt.value) === i)}
+          options={academicYears.map((y) => ({ value: y, label: y }))}
           value={filterYear}
           onChange={(v) => v && setFilterYear(v)}
           placeholder="Selecione o ano"

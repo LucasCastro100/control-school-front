@@ -55,83 +55,95 @@
       "name": "1 ano",
       "id": "e101d10f-ebc4-45bc-b680-4ba169279a64",
       "createdAt": "2026-06-26T19:13:07.115Z",
-      "nap": "NAP 1"
+      "nap": "NAP 1",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "name": "2 ano",
       "id": "c50ba0e9-d4c3-4edc-91ef-9e7ac892bcc4",
       "createdAt": "2026-06-27T01:10:13.926Z",
-      "nap": "NAP 2"
+      "nap": "NAP 2",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "name": "3 ano",
       "id": "f8b1527f-0ef5-4342-b665-c1ac95f78ad0",
       "createdAt": "2026-06-27T01:10:20.640Z",
-      "nap": "NAP 2"
+      "nap": "NAP 2",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "name": "4 ano",
       "id": "54fc1650-7bad-4156-be38-4cbc6933ae84",
       "createdAt": "2026-06-27T01:10:41.571Z",
-      "nap": "NAP 2"
+      "nap": "NAP 2",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "name": "5 ano",
       "id": "73c7b3e4-7036-48f5-9f87-21920b3686e0",
       "createdAt": "2026-06-27T01:10:49.720Z",
-      "nap": "NAP 2"
+      "nap": "NAP 2",
+      "year": "2026"
     },
     {
       "schoolId": "4095f8c6-e796-46d5-9a35-a9f594635bdf",
       "name": "1 ano",
       "id": "3f74d15c-8bb6-43b9-b5ca-dbb5bf3f50a6",
-      "createdAt": "2026-06-27T11:55:47.076Z"
+      "createdAt": "2026-06-27T11:55:47.076Z",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "nap": "NAP 1",
       "name": "Infantil 4 anos",
       "id": "49a5a923-22dd-44ac-85d8-f9ebaa12419c",
-      "createdAt": "2026-06-27T13:32:14.734Z"
+      "createdAt": "2026-06-27T13:32:14.734Z",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "nap": "NAP 1",
       "name": "Infantil 5 anos",
       "id": "43b95534-6586-44f5-805a-5a7bee721eb1",
-      "createdAt": "2026-06-27T13:32:51.877Z"
+      "createdAt": "2026-06-27T13:32:51.877Z",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "nap": "NAP 3",
       "name": "6 ano",
       "id": "82007511-63b0-4e5c-ba11-96a285d57bd3",
-      "createdAt": "2026-06-27T13:32:58.801Z"
+      "createdAt": "2026-06-27T13:32:58.801Z",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "nap": "NAP 3",
       "name": "7 ano",
       "id": "03d431e9-ad4c-46cf-b6b7-7f01ba1bb2bb",
-      "createdAt": "2026-06-27T13:33:05.232Z"
+      "createdAt": "2026-06-27T13:33:05.232Z",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "nap": "NAP 3",
       "name": "8 ano",
       "id": "b30c1a97-c955-4a21-a512-ec438d8e5333",
-      "createdAt": "2026-06-27T13:33:11.933Z"
+      "createdAt": "2026-06-27T13:33:11.933Z",
+      "year": "2026"
     },
     {
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "nap": "NAP 3",
       "name": "9 ano",
       "id": "096e5f2b-d393-452c-b5f3-023957ca28e1",
-      "createdAt": "2026-06-27T13:33:19.450Z"
+      "createdAt": "2026-06-27T13:33:19.450Z",
+      "year": "2026"
     }
   ],
   "control-schools:rooms": [
@@ -290,77 +302,88 @@
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 1",
       "itemId": "7a393cbe-e5d8-43f5-9dda-b3ee9271d63d",
-      "quantity": 2
+      "quantity": 2,
+      "year": "2026"
     },
     {
       "id": "71285424-cad6-4ddb-8845-07e13530d02b",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 1",
       "itemId": "4479c9ed-72ba-4962-afdd-fcc2f2d8d063",
-      "quantity": 2
+      "quantity": 2,
+      "year": "2026"
     },
     {
       "id": "b6b92230-b6c9-4816-a425-da9aaa4455e6",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 1",
       "itemId": "680da123-1576-4b33-8735-52d40f9e0831",
-      "quantity": 2
+      "quantity": 2,
+      "year": "2026"
     },
     {
       "id": "3fa819bf-579e-474b-bc72-05206f5f16af",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 1",
       "itemId": "517c73e3-71ad-49bc-9cd3-26c4166ac54c",
-      "quantity": 3
+      "quantity": 3,
+      "year": "2026"
     },
     {
       "id": "d96a6b86-7186-47d1-8152-8ba230028407",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 2",
       "itemId": "517c73e3-71ad-49bc-9cd3-26c4166ac54c",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     },
     {
       "id": "94d1d083-0ba3-4376-bdc8-24e3dd319bc8",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 2",
       "itemId": "4b9b8ae3-fdd3-417f-9a34-2ba36a0648a2",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     },
     {
       "id": "a11a8e53-d404-483c-8b6d-c2538c118020",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 2",
       "itemId": "e22fcdfe-2595-4cb3-ba91-7c8331f70384",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     },
     {
       "id": "a9a51fbc-4190-41d4-bc6e-425e968801fe",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 2",
       "itemId": "d31403f3-fb32-4388-8e1d-8985eca86dc0",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     },
     {
       "id": "8b15f24d-0e38-4718-8cd6-082eda7ddf54",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 3",
       "itemId": "e96a8b69-4e09-4e22-972a-1f16220d1c1b",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     },
     {
       "id": "0ea2a6f7-5eb2-46dc-8cdd-a74376393e4a",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 3",
       "itemId": "e690de28-f7b7-41d9-bb40-4e35bd626256",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     },
     {
       "id": "cf8058fc-6d7b-4a0a-aa25-b609f082c1da",
       "schoolId": "4d3186d1-3227-452e-94d3-883939c1244d",
       "segmentName": "NAP 3",
       "itemId": "96f89568-4ff2-4428-acb6-6bb52a96f1b4",
-      "quantity": 5
+      "quantity": 5,
+      "year": "2026"
     }
   ],
   "control-schools:orientadores": [
