@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
 
 const nunito = Nunito({
@@ -28,6 +29,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
       <SpeedInsights />
+      <Analytics/>
         <TooltipProvider>
           {children}
           <Toaster
