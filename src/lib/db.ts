@@ -1,4 +1,4 @@
-import type { School, Class, Room, Student, Schedule, AuthUser, SegmentConfig, Item, NapItem, Orientador, TbrCategory, TbrTeam } from "./types"
+import type { School, Class, Room, Student, Schedule, OrientadorSchedule, AgendaItem, AuthUser, SegmentConfig, Item, NapItem, Orientador, TbrCategory, TbrTeam } from "./types"
 import seedData from "@/data/seed.json"
 
 const STORAGE_KEYS = {
@@ -7,10 +7,12 @@ const STORAGE_KEYS = {
   rooms: "control-schools:rooms",
   students: "control-schools:students",
   schedules: "control-schools:schedules",
+  orientadorSchedules: "control-schools:orientador-schedules",
   segmentConfigs: "control-schools:segment-configs",
   items: "control-schools:items",
   napItems: "control-schools:nap-items",
   orientadores: "control-schools:orientadores",
+  agenda: "control-schools:agenda",
   tbrCategories: "control-schools:tbr-categories",
   tbrTeams: "control-schools:tbr-teams",
 } as const
@@ -19,12 +21,15 @@ const runtimeCache: Record<string, unknown[]> = { ...seedData }
 
 export function initStorage(): void {
   if (typeof window === "undefined") return
-  for (const key of Object.keys(runtimeCache)) {
+  for (const key of Object.values(STORAGE_KEYS)) {
     const existing = localStorage.getItem(key)
-    if (!existing) {
+    if (existing) {
+      runtimeCache[key] = JSON.parse(existing)
+    } else if (key in runtimeCache) {
       localStorage.setItem(key, JSON.stringify(runtimeCache[key]))
     } else {
-      runtimeCache[key] = JSON.parse(existing)
+      runtimeCache[key] = []
+      localStorage.setItem(key, "[]")
     }
   }
   migrateExistingData()
@@ -64,13 +69,20 @@ function migrateExistingData(): void {
 }
 
 export function exportStorageData(): Record<string, unknown[]> {
-  return { ...runtimeCache }
+  const result: Record<string, unknown[]> = { ...runtimeCache }
+  for (const key of Object.values(STORAGE_KEYS)) {
+    if (!(key in result)) {
+      result[key] = getItems<unknown>(key)
+    }
+  }
+  return result
 }
 
 export function importStorageData(data: Record<string, unknown[]>): void {
   if (typeof window === "undefined") return
+  const knownKeys = new Set<string>(Object.values(STORAGE_KEYS))
   for (const [key, value] of Object.entries(data)) {
-    if (key in runtimeCache) {
+    if (knownKeys.has(key)) {
       localStorage.setItem(key, JSON.stringify(value))
       runtimeCache[key] = value
     }
@@ -156,7 +168,42 @@ export function login(
   password: string
 ): AuthUser | null {
   if (email === "admin@gmail.com" && password === "mudar123") {
-    const user: AuthUser = { email, name: "Administrador" }
+    const user: AuthUser = { email, name: "Administrador", role: "admin" }
+    if (typeof window !== "undefined") {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(user))
+    }
+    return user
+  }
+  const orientador = getOrientadores().find(
+    (o) =>
+      o.email.toLowerCase() === email.trim().toLowerCase() &&
+      o.password === password
+  )
+  if (orientador) {
+    const user: AuthUser = {
+      email: orientador.email,
+      name: orientador.name,
+      role: "orientador",
+      orientadorId: orientador.id,
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(user))
+    }
+    return user
+  }
+  const school = getSchools().find(
+    (s) =>
+      s.email &&
+      s.email.toLowerCase() === email.trim().toLowerCase() &&
+      s.password === password
+  )
+  if (school) {
+    const user: AuthUser = {
+      email: school.email!,
+      name: school.name,
+      role: "escola",
+      schoolId: school.id,
+    }
     if (typeof window !== "undefined") {
       localStorage.setItem(AUTH_KEY, JSON.stringify(user))
     }
@@ -213,6 +260,7 @@ export function deleteSchool(id: string): void {
   deleteSegmentConfigsBySchool(id)
   deleteNapItemsBySchool(id)
   deleteTbrTeamsBySchool(id)
+  deleteOrientadorSchedulesBySchool(id)
 }
 
 // Classes
@@ -395,6 +443,55 @@ export function updateSchedule(
 export function deleteSchedule(id: string): void {
   const schedules = getSchedules().filter((s) => s.id !== id)
   setItems(STORAGE_KEYS.schedules, schedules)
+}
+
+// Orientador Schedules
+export function getOrientadorSchedules(): OrientadorSchedule[] {
+  return getItems<OrientadorSchedule>(STORAGE_KEYS.orientadorSchedules)
+}
+
+export function getOrientadorSchedulesBySchool(
+  schoolId: string,
+  year: string
+): OrientadorSchedule[] {
+  return getOrientadorSchedules().filter(
+    (s) => s.schoolId === schoolId && s.year === year
+  )
+}
+
+export function createOrientadorSchedule(
+  data: Omit<OrientadorSchedule, "id" | "createdAt">
+): OrientadorSchedule {
+  const all = getOrientadorSchedules()
+  const schedule: OrientadorSchedule = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  }
+  setItems(STORAGE_KEYS.orientadorSchedules, [...all, schedule])
+  return schedule
+}
+
+export function updateOrientadorSchedule(
+  id: string,
+  data: Partial<Omit<OrientadorSchedule, "id" | "createdAt">>
+): OrientadorSchedule | undefined {
+  const all = getOrientadorSchedules()
+  const index = all.findIndex((s) => s.id === id)
+  if (index === -1) return undefined
+  all[index] = { ...all[index], ...data }
+  setItems(STORAGE_KEYS.orientadorSchedules, all)
+  return all[index]
+}
+
+export function deleteOrientadorSchedule(id: string): void {
+  const all = getOrientadorSchedules().filter((s) => s.id !== id)
+  setItems(STORAGE_KEYS.orientadorSchedules, all)
+}
+
+export function deleteOrientadorSchedulesBySchool(schoolId: string): void {
+  const all = getOrientadorSchedules().filter((s) => s.schoolId !== schoolId)
+  setItems(STORAGE_KEYS.orientadorSchedules, all)
 }
 
 // Segment Configs
@@ -600,6 +697,7 @@ export function createOrientador(
   const orientadores = getOrientadores()
   const orientador: Orientador = {
     ...data,
+    password: data.password || "mudar123",
     id: generateId(),
     createdAt: new Date().toISOString(),
   }
@@ -626,6 +724,51 @@ export function deleteOrientador(id: string): void {
     s.orientadorId === id ? { ...s, orientadorId: undefined } : s
   )
   setItems(STORAGE_KEYS.schools, schools)
+  const agenda = getAgendaItems().filter((a) => a.orientadorId !== id)
+  setItems(STORAGE_KEYS.agenda, agenda)
+}
+
+// Agenda
+export function getAgendaItems(): AgendaItem[] {
+  return getItems<AgendaItem>(STORAGE_KEYS.agenda)
+}
+
+export function getAgendaItemsByOrientador(orientadorId: string): AgendaItem[] {
+  return getAgendaItems().filter((a) => a.orientadorId === orientadorId)
+}
+
+export function getAgendaItem(id: string): AgendaItem | undefined {
+  return getAgendaItems().find((a) => a.id === id)
+}
+
+export function createAgendaItem(
+  data: Omit<AgendaItem, "id" | "createdAt">
+): AgendaItem {
+  const all = getAgendaItems()
+  const item: AgendaItem = {
+    ...data,
+    id: generateId(),
+    createdAt: new Date().toISOString(),
+  }
+  setItems(STORAGE_KEYS.agenda, [...all, item])
+  return item
+}
+
+export function updateAgendaItem(
+  id: string,
+  data: Partial<Omit<AgendaItem, "id" | "createdAt">>
+): AgendaItem | undefined {
+  const all = getAgendaItems()
+  const index = all.findIndex((a) => a.id === id)
+  if (index === -1) return undefined
+  all[index] = { ...all[index], ...data }
+  setItems(STORAGE_KEYS.agenda, all)
+  return all[index]
+}
+
+export function deleteAgendaItem(id: string): void {
+  const all = getAgendaItems().filter((a) => a.id !== id)
+  setItems(STORAGE_KEYS.agenda, all)
 }
 
 // TBR Categories

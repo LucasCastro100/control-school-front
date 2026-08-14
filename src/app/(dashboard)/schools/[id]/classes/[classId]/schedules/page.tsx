@@ -76,6 +76,7 @@ export default function SchedulesPage({
   const [endTime, setEndTime] = useState("")
   const [subject, setSubject] = useState("")
   const [teacher, setTeacher] = useState("")
+  const [fortnight, setFortnight] = useState("1")
 
   useEffect(() => {
     const schoolData = getSchool(id)
@@ -129,6 +130,7 @@ export default function SchedulesPage({
       setEndTime("")
       setSubject("")
       setTeacher("")
+      setFortnight("1")
     } else {
       setFormRoom(selectedRoom === "all" ? "" : selectedRoom)
     }
@@ -142,6 +144,7 @@ export default function SchedulesPage({
     setEndTime(schedule.endTime)
     setSubject(schedule.subject)
     setTeacher(schedule.teacher)
+    setFortnight(String(schedule.fortnight ?? 1))
     setOpen(true)
   }
 
@@ -150,6 +153,10 @@ export default function SchedulesPage({
       return
     setSaving(true)
     setTimeout(() => {
+      const fortnightValue: 0 | 1 | 2 =
+        school?.scheduleType === "quinzenal"
+          ? fortnight === "2" ? 2 : 1
+          : 0
       const data = {
         classId,
         roomId: formRoom,
@@ -158,6 +165,7 @@ export default function SchedulesPage({
         endTime,
         subject: subject.trim(),
         teacher: teacher.trim(),
+        fortnight: fortnightValue,
       }
       if (editingSchedule) {
         updateSchedule(editingSchedule.id, data)
@@ -269,6 +277,22 @@ export default function SchedulesPage({
                   emptyText="Nenhum dia encontrado."
                 />
               </div>
+              {school?.scheduleType === "quinzenal" && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="fortnight">Quinzena</Label>
+                  <SearchableSelect
+                    options={[
+                      { value: "1", label: "Quinzena 1" },
+                      { value: "2", label: "Quinzena 2" },
+                    ]}
+                    value={fortnight}
+                    onChange={(v) => v && setFortnight(v)}
+                    placeholder="Selecione a quinzena"
+                    searchPlaceholder="Buscar quinzena..."
+                    emptyText="Nenhuma quinzena encontrada."
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="startTime">
@@ -369,13 +393,31 @@ export default function SchedulesPage({
                       <div
                         key={schedule.id}
                         className="flex items-start justify-between rounded-lg border p-3 border-l-transparent hover:border-l-primary/50 transition-colors"
-                        style={{ borderLeftColor: `oklch(0.62 0.22 ${275 + schedule.dayOfWeek * 20})` }}
+                        style={{
+                          borderLeftColor:
+                            school?.scheduleType === "quinzenal"
+                              ? schedule.fortnight === 2
+                                ? "oklch(0.62 0.22 25)"
+                                : "oklch(0.62 0.2 245)"
+                              : `oklch(0.62 0.22 ${275 + schedule.dayOfWeek * 20})`,
+                        }}
                       >
                         <div className="flex flex-col gap-1">
                           {selectedRoom === "all" && (
                             <Badge variant="default" className="w-fit mb-1">
                               {rooms.find((r) => r.id === schedule.roomId)?.name ?? schedule.roomId}
                             </Badge>
+                          )}
+                          {school?.scheduleType === "quinzenal" && (
+                            <span
+                              className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                schedule.fortnight === 2
+                                  ? "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                              }`}
+                            >
+                              Quinzena {schedule.fortnight ?? 1}
+                            </span>
                           )}
                           <span className="font-medium">
                             {schedule.subject}

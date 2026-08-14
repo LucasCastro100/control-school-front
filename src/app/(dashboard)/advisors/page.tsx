@@ -33,18 +33,21 @@ import {
   createOrientador,
   updateOrientador,
   deleteOrientador,
+  getSchools,
 } from "@/lib/db"
 import { REGIONS } from "@/lib/brazil-data"
 import { fetchStatesByRegion, fetchCitiesByState } from "@/lib/ibge-api"
 
 export default function OrientadoresPage() {
   const [orientadores, setOrientadores] = useState<Orientador[]>([])
+  const [schoolCounts, setSchoolCounts] = useState<Record<string, number>>({})
   const [open, setOpen] = useState(false)
   const [editingOrientador, setEditingOrientador] = useState<Orientador | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [region, setRegion] = useState("")
   const [state, setState] = useState("")
   const [city, setCity] = useState("")
@@ -58,6 +61,13 @@ export default function OrientadoresPage() {
 
   useEffect(() => {
     setOrientadores(getOrientadores())
+    const counts: Record<string, number> = {}
+    for (const school of getSchools()) {
+      if (school.orientadorId) {
+        counts[school.orientadorId] = (counts[school.orientadorId] ?? 0) + 1
+      }
+    }
+    setSchoolCounts(counts)
   }, [])
 
   useEffect(() => {
@@ -77,6 +87,13 @@ export default function OrientadoresPage() {
 
   function refresh() {
     setOrientadores(getOrientadores())
+    const counts: Record<string, number> = {}
+    for (const school of getSchools()) {
+      if (school.orientadorId) {
+        counts[school.orientadorId] = (counts[school.orientadorId] ?? 0) + 1
+      }
+    }
+    setSchoolCounts(counts)
   }
 
   function handleOpenChange(open: boolean) {
@@ -85,6 +102,7 @@ export default function OrientadoresPage() {
       setEditingOrientador(null)
       setName("")
       setEmail("")
+      setPassword("")
       setRegion("")
       setState("")
       setCity("")
@@ -133,6 +151,7 @@ export default function OrientadoresPage() {
     setEditingOrientador(orientador)
     setName(orientador.name)
     setEmail(orientador.email)
+    setPassword(orientador.password ?? "")
     setOpen(true)
 
     setLoadingStates(true)
@@ -171,6 +190,7 @@ export default function OrientadoresPage() {
         updateOrientador(editingOrientador.id, {
           name: name.trim(),
           email: email.trim(),
+          password: password.trim() || "mudar123",
           region,
           state,
           city,
@@ -179,6 +199,7 @@ export default function OrientadoresPage() {
         createOrientador({
           name: name.trim(),
           email: email.trim(),
+          password: password.trim() || "mudar123",
           region,
           state,
           city,
@@ -229,6 +250,18 @@ export default function OrientadoresPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email do orientador"
               />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password">Senha de acesso</Label>
+              <Input
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Senha (padrão: mudar123)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Usada pelo orientador para acessar a Agenda. Deixe em branco para usar &quot;mudar123&quot;.
+              </p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-2">
@@ -310,6 +343,7 @@ export default function OrientadoresPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Município</TableHead>
+                  <TableHead className="text-center">Qtd Escolas</TableHead>
                   <TableHead className="w-px">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -322,6 +356,17 @@ export default function OrientadoresPage() {
                     <TableCell>{orientador.email || "-"}</TableCell>
                     <TableCell>{orientador.state || "-"}</TableCell>
                     <TableCell>{orientador.city || "-"}</TableCell>
+                    <TableCell className="text-center">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          (schoolCounts[orientador.id] ?? 0) > 0
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {schoolCounts[orientador.id] ?? 0}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <div className="flex justify-center gap-2">
                         <Button

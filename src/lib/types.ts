@@ -7,6 +7,9 @@ export interface School {
   city: string
   color?: string
   orientadorId?: string
+  email?: string
+  password?: string
+  scheduleType?: "semanal" | "quinzenal"
   active?: boolean
   createdAt: string
 }
@@ -15,6 +18,7 @@ export interface Orientador {
   id: string
   name: string
   email: string
+  password?: string
   region: string
   state: string
   city: string
@@ -24,6 +28,9 @@ export interface Orientador {
 export interface AuthUser {
   email: string
   name: string
+  role: "admin" | "orientador" | "escola"
+  orientadorId?: string
+  schoolId?: string
 }
 
 export interface Class {
@@ -59,6 +66,29 @@ export interface Schedule {
   endTime: string
   subject: string
   teacher: string
+  fortnight?: 0 | 1 | 2
+}
+
+export interface OrientadorSchedule {
+  id: string
+  schoolId: string
+  orientadorId: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  activity: string
+  year: string
+  createdAt: string
+}
+
+export interface AgendaItem {
+  id: string
+  orientadorId: string
+  date: string
+  startTime: string
+  endTime: string
+  activity: string
+  createdAt: string
 }
 
 export interface SegmentConfig {

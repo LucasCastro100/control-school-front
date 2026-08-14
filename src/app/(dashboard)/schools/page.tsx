@@ -65,6 +65,9 @@ export default function SchoolsPage() {
   const [state, setState] = useState("")
   const [city, setCity] = useState("")
   const [color, setColor] = useState("")
+  const [scheduleType, setScheduleType] = useState<"semanal" | "quinzenal">("semanal")
+  const [schoolEmail, setSchoolEmail] = useState("")
+  const [schoolPassword, setSchoolPassword] = useState("")
   const [orientadorId, setOrientadorId] = useState("")
   const [orientadores, setOrientadores] = useState<Orientador[]>([])
   const [tbrCategories, setTbrCategories] = useState<TbrCategory[]>([])
@@ -173,6 +176,9 @@ export default function SchoolsPage() {
       setState("")
       setCity("")
       setColor("")
+      setScheduleType("semanal")
+      setSchoolEmail("")
+      setSchoolPassword("")
       setOrientadorId("")
       setActive(true)
       setStateOptions([])
@@ -237,6 +243,9 @@ export default function SchoolsPage() {
     setName(school.name)
     setAddress(school.address)
     setColor(school.color ?? "")
+    setScheduleType(school.scheduleType ?? "semanal")
+    setSchoolEmail(school.email ?? "")
+    setSchoolPassword(school.password ?? "")
     setOrientadorId(school.orientadorId ?? "")
     setActive(school.active !== false)
     setTeams(
@@ -290,6 +299,9 @@ export default function SchoolsPage() {
           city,
           color: color || undefined,
           orientadorId: orientadorId || undefined,
+          scheduleType,
+          email: schoolEmail.trim() || undefined,
+          password: schoolPassword.trim() || "mudar123",
           active,
         })
         schoolId = editingSchool.id
@@ -302,6 +314,9 @@ export default function SchoolsPage() {
           city,
           color: color || undefined,
           orientadorId: orientadorId || undefined,
+          scheduleType,
+          email: schoolEmail.trim() || undefined,
+          password: schoolPassword.trim() || "mudar123",
           active,
         })
         schoolId = created.id
@@ -359,6 +374,31 @@ export default function SchoolsPage() {
                 placeholder="Endereço da escola"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="schoolEmail">Email de acesso</Label>
+                <Input
+                  id="schoolEmail"
+                  type="email"
+                  value={schoolEmail}
+                  onChange={(e) => setSchoolEmail(e.target.value)}
+                  placeholder="Email para login da escola"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="schoolPassword">Senha de acesso</Label>
+                <Input
+                  id="schoolPassword"
+                  value={schoolPassword}
+                  onChange={(e) => setSchoolPassword(e.target.value)}
+                  placeholder="Senha (padrão: mudar123)"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Credenciais usadas pela escola para acessar o sistema. Deixe a senha em branco
+              para usar &quot;mudar123&quot;.
+            </p>
             <div className="flex items-center gap-3">
               <Label htmlFor="color" className="flex items-center gap-2 text-sm whitespace-nowrap">
                 <Palette className="size-4" />
@@ -397,6 +437,39 @@ export default function SchoolsPage() {
                   className={`inline-block size-5 rounded-full bg-white transition-transform ${active ? "translate-x-[22px]" : "translate-x-[2px]"}`}
                 />
               </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Aulas (horários)</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScheduleType("semanal")}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                    scheduleType === "semanal"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Semanal
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Todas as semanas
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleType("quinzenal")}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                    scheduleType === "quinzenal"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Quinzenal
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Alterna quinzena 1 / quinzena 2
+                  </span>
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-2">
@@ -626,6 +699,7 @@ export default function SchoolsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
+                    <TableHead>Horários</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Cidade</TableHead>
                     <TableHead>Orientador</TableHead>
@@ -653,6 +727,19 @@ export default function SchoolsPage() {
                           )}
                           {school.name || "-"}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            (school.scheduleType ?? "semanal") === "quinzenal"
+                              ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                          }`}
+                        >
+                          {(school.scheduleType ?? "semanal") === "quinzenal"
+                            ? "Quinzenal"
+                            : "Semanal"}
+                        </span>
                       </TableCell>
                       <TableCell>{school.state || "-"}</TableCell>
                       <TableCell>{school.city || "-"}</TableCell>

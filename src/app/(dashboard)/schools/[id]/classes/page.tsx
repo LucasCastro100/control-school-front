@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
-import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
-import type { Class, School, Item, NapItem } from "@/lib/types"
+import type { Class, School, Item, NapItem, Room } from "@/lib/types"
 import {
   getSchool,
   getClassesBySchool,
@@ -36,6 +36,9 @@ import {
   updateClass,
   deleteClass,
   getRoomsByClass,
+  createRoom,
+  deleteRoom,
+  createStudent,
   getStudentsByRoom,
   getAllItems,
   getNapItems,
@@ -102,6 +105,13 @@ export default function ClassesPage() {
   const [itemDialog, setItemDialog] = useState(false)
   const [itemSegName, setItemSegName] = useState("")
   const [itemQuantities, setItemQuantities] = useState<Record<string, string>>({})
+  const [roomsDialog, setRoomsDialog] = useState(false)
+  const [roomsTarget, setRoomsTarget] = useState<Class | null>(null)
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [roomName, setRoomName] = useState("")
+  const [roomStudentCount, setRoomStudentCount] = useState("")
+  const [addingRoom, setAddingRoom] = useState(false)
+  const [roomDeleteTarget, setRoomDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const { setHeader } = usePageHeader()
 
   const academicYears = getAcademicYears()
@@ -211,7 +221,7 @@ export default function ClassesPage() {
     setOpen(true)
   }
 
-  function handleSave() {
+  function handleSave(closeAfter: boolean) {
     if (!segmento || !name.trim()) return
     const yearValue = editingClass ? editingClass.year : classYear || filterYear
     if (!yearValue) return
@@ -222,9 +232,15 @@ export default function ClassesPage() {
       } else {
         createClass({ schoolId: id, nap: segmento, name: name.trim(), year: yearValue })
       }
-      handleOpenChange(false)
       setSaving(false)
       refresh()
+      if (closeAfter) {
+        handleOpenChange(false)
+      } else {
+        setSegmento("")
+        setClassYear("")
+        setName("")
+      }
     }, 0)
   }
 
@@ -249,6 +265,49 @@ export default function ClassesPage() {
     setItemSegName(segName)
     setItemQuantities(qtyMap)
     setItemDialog(true)
+  }
+
+  function openRoomsDialog(cls: Class) {
+    setRoomsTarget(cls)
+    setRooms(getRoomsByClass(cls.id))
+    setRoomName("")
+    setRoomStudentCount("")
+    setRoomsDialog(true)
+  }
+
+  function handleAddRoom(closeAfter: boolean) {
+    if (!roomsTarget || !roomName.trim()) return
+    const count = parseInt(roomStudentCount) || 0
+    setAddingRoom(true)
+    setTimeout(() => {
+      const room = createRoom({ classId: roomsTarget.id, name: roomName.trim() })
+      const prefix = String(Date.now()).slice(-6)
+      for (let i = 1; i <= count; i++) {
+        createStudent({
+          roomId: room.id,
+          name: `Aluno ${i}`,
+          registrationNumber: `${prefix}${String(i).padStart(2, "0")}`,
+        })
+      }
+      setRooms(getRoomsByClass(roomsTarget.id))
+      setRoomName("")
+      setRoomStudentCount("")
+      setAddingRoom(false)
+      refresh()
+      if (closeAfter) {
+        setRoomsDialog(false)
+      }
+    }, 0)
+  }
+
+  function confirmRoomDelete() {
+    if (!roomDeleteTarget) return
+    deleteRoom(roomDeleteTarget.id)
+    setRoomDeleteTarget(null)
+    if (roomsTarget) {
+      setRooms(getRoomsByClass(roomsTarget.id))
+    }
+    refresh()
   }
 
   function handleSaveItems() {
@@ -365,10 +424,17 @@ export default function ClassesPage() {
                 placeholder="Ex: 1 Ano A"
               />
             </div>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <LoaderCircle className="size-4 animate-spin" />}
-              {editingClass ? "Salvar" : "Criar"}
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => handleSave(true)} disabled={saving}>
+                {saving && <LoaderCircle className="size-4 animate-spin" />}
+                {editingClass ? "Salvar" : "Criar"}
+              </Button>
+              {!editingClass && (
+                <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
+                  Criar e adicionar outra
+                </Button>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -440,6 +506,105 @@ export default function ClassesPage() {
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={roomsDialog} onOpenChange={setRoomsDialog}>
+        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>
+              Salas - {roomsTarget?.name} {roomsTarget?.year ? `(${roomsTarget.year})` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            {rooms.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                Nenhuma sala cadastrada.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                {rooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border p-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium">{room.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {getStudentsByRoom(room.id).length} alunos
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {roomsTarget && (
+                        <Link
+                          href={`/schools/${id}/classes/${roomsTarget.id}/rooms/${room.id}/students`}
+                        >
+                          <Button variant="outline" size="icon" className="size-8">
+                            <Users className="size-3.5" />
+                          </Button>
+                        </Link>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => setRoomDeleteTarget({ id: room.id, label: room.name })}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <Label>Nova Sala</Label>
+              <Input
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder="Ex: 1A, 1B"
+              />
+              <Input
+                type="number"
+                min="0"
+                value={roomStudentCount}
+                onChange={(e) => setRoomStudentCount(e.target.value)}
+                placeholder="Quantidade de alunos"
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleAddRoom(true)}
+                  disabled={addingRoom || !roomName.trim()}
+                >
+                  {addingRoom && <LoaderCircle className="size-4 animate-spin" />}
+                  Adicionar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleAddRoom(false)}
+                  disabled={addingRoom || !roomName.trim()}
+                >
+                  Adicionar e adicionar outra
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!roomDeleteTarget} onOpenChange={(open) => !open && setRoomDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir a sala <strong>{roomDeleteTarget?.label}</strong>?
+            Esta ação irá remover também alunos e horários vinculados.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRoomDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmRoomDelete}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -516,13 +681,14 @@ export default function ClassesPage() {
                         <TableCell>{stats?.biggestRoom ?? "-"}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Link
-                              href={"/schools/" + id + "/classes/" + cls.id + "/rooms"}
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-8"
+                              onClick={() => openRoomsDialog(cls)}
                             >
-                              <Button variant="outline" size="icon" className="size-8">
-                                <DoorOpen className="size-3.5" />
-                              </Button>
-                            </Link>
+                              <DoorOpen className="size-3.5" />
+                            </Button>
                             <Link
                               href={"/schools/" + id + "/classes/" + cls.id + "/schedules"}
                             >

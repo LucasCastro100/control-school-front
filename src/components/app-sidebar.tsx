@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { School, GraduationCap, LogOut, User, Calendar, Package, UserRoundCog, Users, Save, Upload, Download, Database, ChevronDown } from "lucide-react"
+import { School, GraduationCap, LogOut, User, Calendar, CalendarDays, Package, UserRoundCog, Users, Save, Upload, Download, Database, ChevronDown } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +25,7 @@ const routes = [
   { href: "/items", label: "Itens", icon: Package },
   { href: "/tbr", label: "TBR", icon: Users },
   { href: "/all-schedules", label: "Horário Geral", icon: Calendar },
+  { href: "/agenda", label: "Agenda", icon: CalendarDays },
 ]
 
 export function AppSidebar({ user }: { user: AuthUser | null }) {
@@ -38,6 +39,15 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
 
   const [saving, setSaving] = useState(false)
   const [dataOpen, setDataOpen] = useState(false)
+
+  const userRoutes =
+    user?.role === "orientador"
+      ? routes.filter((r) => r.href === "/agenda")
+      : user?.role === "escola"
+        ? user.schoolId
+          ? [{ href: `/schools/${user.schoolId}/classes`, label: "Minha Escola", icon: School }]
+          : []
+        : routes
 
   async function handleSave() {
     setSaving(true)
@@ -109,7 +119,7 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {routes.map((route) => {
+              {userRoutes.map((route) => {
                 const Icon = route.icon
                 const isActive = pathname.startsWith(route.href)
                 return (

@@ -448,5 +448,7 @@
       "createdAt": "2026-07-07T13:10:42.054Z"
     }
   ],
-  "control-schools:tbr-teams": []
+  "control-schools:tbr-teams": [],
+  "control-schools:orientador-schedules": [],
+  "control-schools:agenda": []
 }

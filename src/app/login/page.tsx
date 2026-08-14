@@ -32,7 +32,13 @@ export default function LoginPage() {
 
     const user = login(email.trim(), password)
     if (user) {
-      router.push("/schools")
+      if (user.role === "orientador") {
+        router.push("/agenda")
+      } else if (user.role === "escola") {
+        router.push(user.schoolId ? `/schools/${user.schoolId}/classes` : "/login")
+      } else {
+        router.push("/schools")
+      }
     } else {
       setError("Email ou senha inválidos.")
       setLoading(false)

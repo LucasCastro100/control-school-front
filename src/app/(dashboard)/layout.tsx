@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { getAuthUser, initStorage } from "@/lib/db"
@@ -28,6 +28,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -41,6 +42,19 @@ export default function DashboardLayout({
       setLoading(false)
     }
   }, [router])
+
+  useEffect(() => {
+    if (!user) return
+    if (user.role === "orientador" && !pathname.startsWith("/agenda")) {
+      router.push("/agenda")
+    } else if (
+      user.role === "escola" &&
+      user.schoolId &&
+      !pathname.startsWith(`/schools/${user.schoolId}`)
+    ) {
+      router.push(`/schools/${user.schoolId}/classes`)
+    }
+  }, [user, pathname, router])
 
   if (loading) {
     return (
