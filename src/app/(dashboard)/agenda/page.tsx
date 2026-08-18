@@ -228,6 +228,8 @@ export default function AgendaPage() {
 
   const todayKey = dateKey(new Date())
 
+  if (pageLoading) return <AgendaSkeleton />
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -289,9 +291,7 @@ export default function AgendaPage() {
               const inMonth = day.getMonth() === current.month
               const today = key === todayKey
               const dayItems = itemsByDate.get(key) ?? []
-  if (pageLoading) return <AgendaSkeleton />
-
-  return (
+              return (
                 <div
                   key={key}
                   onClick={() => openCreate(day)}
