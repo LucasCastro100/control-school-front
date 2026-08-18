@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { School, GraduationCap, LogOut, User, Calendar, CalendarDays, Package, UserRoundCog, Users, Save, Upload, Download, Database, ChevronDown } from "lucide-react"
+import { School, GraduationCap, LogOut, User, Calendar, CalendarDays, Package, UserRoundCog, Users, Upload, Download, Database, ChevronDown } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -37,7 +37,6 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
     router.push("/login")
   }
 
-  const [saving, setSaving] = useState(false)
   const [dataOpen, setDataOpen] = useState(false)
 
   const userRoutes =
@@ -48,27 +47,6 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
           ? [{ href: `/schools/${user.schoolId}/classes`, label: "Minha Escola", icon: School }]
           : []
         : routes
-
-  async function handleSave() {
-    setSaving(true)
-    try {
-      const data = exportStorageData()
-      const res = await fetch("/api/seed-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-      if (res.ok) {
-        toast.success("Dados salvos em seed.json com sucesso!")
-      } else {
-        toast.error("Erro ao salvar dados.")
-      }
-    } catch {
-      toast.error("Erro ao conectar com o servidor.")
-    } finally {
-      setSaving(false)
-    }
-  }
 
   function handleExport() {
     const data = exportStorageData()
@@ -149,16 +127,6 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
               )}
               {user?.email === "admin@gmail.com" && dataOpen && (
                 <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={handleSave}
-                      disabled={saving}
-                      tooltip="Salvar no seed.json"
-                    >
-                      <Save />
-                      <span>{saving ? "Salvando..." : "Salvar no seed.json"}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       onClick={handleExport}

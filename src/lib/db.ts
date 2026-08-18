@@ -1,5 +1,4 @@
 import type { School, Class, Room, Student, Schedule, OrientadorSchedule, AgendaItem, AuthUser, SegmentConfig, Item, NapItem, Orientador, TbrCategory, TbrTeam } from "./types"
-import seedData from "@/data/seed.json"
 
 const STORAGE_KEYS = {
   schools: "control-schools:schools",
@@ -17,7 +16,7 @@ const STORAGE_KEYS = {
   tbrTeams: "control-schools:tbr-teams",
 } as const
 
-const runtimeCache: Record<string, unknown[]> = { ...seedData }
+const runtimeCache: Record<string, unknown[]> = {}
 
 export function initStorage(): void {
   if (typeof window === "undefined") return
