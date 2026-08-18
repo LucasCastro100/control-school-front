@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, X, LoaderCircle, CheckCircle2, XCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, X, LoaderCircle, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
@@ -75,6 +75,7 @@ export default function SchoolsPage() {
   const [scheduleType, setScheduleType] = useState<"semanal" | "quinzenal">("semanal")
   const [schoolEmail, setSchoolEmail] = useState("")
   const [schoolPassword, setSchoolPassword] = useState("")
+  const [showSchoolPassword, setShowSchoolPassword] = useState(false)
   const [orientadorId, setOrientadorId] = useState("")
   const [orientadores, setOrientadores] = useState<User[]>([])
   const [tbrCategories, setTbrCategories] = useState<TbrCategory[]>([])
@@ -247,6 +248,7 @@ export default function SchoolsPage() {
       setScheduleType("semanal")
       setSchoolEmail("")
       setSchoolPassword("")
+      setShowSchoolPassword(false)
       setOrientadorId(isOrientador && myOrientadorId ? myOrientadorId : "")
       setActive(true)
       setStateOptions([])
@@ -460,12 +462,24 @@ export default function SchoolsPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="password">Senha de acesso</Label>
-                <Input
-                  id="password"
-                  value={schoolPassword}
-                  onChange={(e) => setSchoolPassword(e.target.value)}
-                  placeholder="Senha (padrão: mudar123)"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showSchoolPassword ? "text" : "password"}
+                    value={schoolPassword}
+                    onChange={(e) => setSchoolPassword(e.target.value)}
+                    placeholder="Senha (padrão: mudar123)"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSchoolPassword(!showSchoolPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showSchoolPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground -mt-2">

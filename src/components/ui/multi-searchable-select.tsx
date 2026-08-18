@@ -124,7 +124,10 @@ export function MultiSearchableSelect({
       </button>
 
       {open && (
-        <div className="absolute top-full z-50 mt-1 min-w-max rounded-xl border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-primary/5">
+        <div
+          className="absolute top-full z-50 mt-1 min-w-max rounded-xl border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-primary/5"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center border-b border-border px-3">
             <Search className="mr-2 size-4 shrink-0 opacity-50" />
             <input

@@ -21,12 +21,43 @@ export async function login(email: string, password: string): Promise<{ user: Au
   if (!data.user) return { user: null, error: "invalid" }
 
   const meta = data.user.user_metadata
+  const role = meta?.role ?? "admin"
+  let userId = meta?.user_id
+
+  // Auto-criar registro na tabela users se não existir
+  if (!userId) {
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single()
+
+    if (existingUser) {
+      userId = existingUser.id
+    } else {
+      userId = crypto.randomUUID()
+      const { error: insertError } = await supabase.from("users").insert({
+        id: userId,
+        name: meta?.name ?? data.user.email?.split("@")[0] ?? "",
+        email: data.user.email ?? "",
+        password: "",
+        role,
+        created_at: new Date().toISOString(),
+      })
+      if (!insertError) {
+        await supabase.auth.updateUser({
+          data: { user_id: userId },
+        })
+      }
+    }
+  }
+
   return {
     user: {
       email: data.user.email ?? "",
       name: meta?.name ?? "",
-      role: meta?.role ?? "admin",
-      userId: meta?.user_id,
+      role,
+      userId,
       schoolId: meta?.school_id,
     },
     error: null,

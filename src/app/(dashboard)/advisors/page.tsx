@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, UserRoundCog, LoaderCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, UserRoundCog, LoaderCircle, Eye, EyeOff } from "lucide-react"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,6 +48,7 @@ export default function OrientadoresPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
 
   const { setHeader } = usePageHeader()
@@ -100,6 +101,7 @@ export default function OrientadoresPage() {
       setName("")
       setEmail("")
       setPassword("")
+      setShowPassword(false)
     }
   }
 
@@ -177,12 +179,24 @@ export default function OrientadoresPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Senha de acesso</Label>
-              <Input
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Senha (padrão: mudar123)"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Senha (padrão: mudar123)"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Usada pelo orientador para acessar o sistema. Deixe em branco para usar &quot;mudar123&quot;.
               </p>
