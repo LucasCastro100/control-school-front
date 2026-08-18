@@ -1,9 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { School, GraduationCap, LogOut, User, Calendar, CalendarDays, Package, UserRoundCog, Users, Upload, Download, Database, ChevronDown } from "lucide-react"
+import { School, GraduationCap, LogOut, User, Calendar, CalendarDays, Package, UserRoundCog, Users } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -15,8 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { toast } from "sonner"
-import { logout, exportStorageData, importStorageData } from "@/lib/db"
+import { logout } from "@/lib/db"
 import type { AuthUser } from "@/lib/types"
 
 const routes = [
@@ -37,8 +35,6 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
     router.push("/login")
   }
 
-  const [dataOpen, setDataOpen] = useState(false)
-
   const userRoutes =
     user?.role === "orientador"
       ? [
@@ -50,35 +46,6 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
           ? [{ href: `/schools/${user.schoolId}/classes`, label: "Minha Escola", icon: School }]
           : []
         : routes
-
-  async function handleExport() {
-    const data = await exportStorageData()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "seed-data.json"
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string)
-        await importStorageData(data)
-        router.refresh()
-        window.location.reload()
-      } catch {
-        toast.error("Erro ao importar: arquivo inválido.")
-      }
-    }
-    reader.readAsText(file)
-    event.target.value = ""
-  }
 
   return (
     <Sidebar collapsible="icon">
@@ -116,47 +83,6 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
                   </SidebarMenuItem>
                 )
               })}
-              {user?.email === "admin@gmail.com" && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => setDataOpen(!dataOpen)}
-                    tooltip="Dados"
-                  >
-                    <Database />
-                    <span>Dados</span>
-                    <ChevronDown className={`ml-auto size-3 transition-transform ${dataOpen ? "rotate-0" : "-rotate-90"}`} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {user?.email === "admin@gmail.com" && dataOpen && (
-                <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={handleExport}
-                      tooltip="Exportar JSON"
-                    >
-                      <Download />
-                      <span>Exportar JSON</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => document.getElementById("import-json-input")?.click()}
-                      tooltip="Importar JSON"
-                    >
-                      <Upload />
-                      <span>Importar JSON</span>
-                    </SidebarMenuButton>
-                    <input
-                      id="import-json-input"
-                      type="file"
-                      accept=".json"
-                      onChange={handleImport}
-                      className="hidden"
-                    />
-                  </SidebarMenuItem>
-                </>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
