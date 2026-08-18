@@ -7,34 +7,8 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-const DialogCloseContext = React.createContext<{
-  markClosedByButton: () => void
-}>({ markClosedByButton: () => {} })
-
-function Dialog({ onOpenChange, ...props }: DialogPrimitive.Root.Props) {
-  const closedByButton = React.useRef(false)
-
-  function handleOpenChange(open: boolean, eventDetails: DialogPrimitive.Root.ChangeEventDetails) {
-    if (!open && !closedByButton.current) return
-    closedByButton.current = false
-    onOpenChange?.(open, eventDetails)
-  }
-
-  function markClosedByButton() {
-    closedByButton.current = true
-  }
-
-  return (
-    <DialogCloseContext.Provider value={{ markClosedByButton }}>
-      <DialogPrimitive.Root
-        data-slot="dialog"
-        onOpenChange={handleOpenChange}
-        {...props}
-      >
-        {props.children}
-      </DialogPrimitive.Root>
-    </DialogCloseContext.Provider>
-  )
+function Dialog({ ...props }: DialogPrimitive.Root.Props) {
+  return <DialogPrimitive.Root data-slot="dialog" disablePointerDismissal {...props} />
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -45,18 +19,8 @@ function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
-function DialogClose({ onClick, ...props }: DialogPrimitive.Close.Props) {
-  const { markClosedByButton } = React.useContext(DialogCloseContext)
-  return (
-    <DialogPrimitive.Close
-      data-slot="dialog-close"
-      onClick={(e) => {
-        markClosedByButton()
-        onClick?.(e)
-      }}
-      {...props}
-    />
-  )
+function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
 function DialogOverlay({
