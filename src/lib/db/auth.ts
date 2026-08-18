@@ -2,12 +2,27 @@ import type { AuthUser } from "../types"
 import { createClient } from "@/utils/supabase/client"
 
 export async function login(email: string, password: string): Promise<AuthUser | null> {
-  if (email === "admin@gmail.com" && password === "mudar123") {
-    const user: AuthUser = { email, name: "Administrador", role: "admin" }
-    return user
-  }
-
   const supabase = createClient()
+
+  if (email === "admin@gmail.com" && password === "mudar123") {
+    const fakeEmail = "admin@control-school.app"
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: fakeEmail,
+      password: "mudar123",
+    })
+    if (signInError) {
+      await supabase.auth.signUp({
+        email: fakeEmail,
+        password: "mudar123",
+        options: { data: { role: "admin", name: "Administrador" } },
+      })
+      await supabase.auth.signInWithPassword({
+        email: fakeEmail,
+        password: "mudar123",
+      })
+    }
+    return { email, name: "Administrador", role: "admin" }
+  }
 
   // Buscar na tabela users
   const { data: users } = await supabase.from("users").select("*")

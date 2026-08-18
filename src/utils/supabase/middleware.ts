@@ -25,10 +25,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refreshar sessão
   await supabase.auth.getUser()
 
-  // Proteger rotas autenticadas
   const { data: { user } } = await supabase.auth.getUser()
   const isAuthPage = request.nextUrl.pathname === "/login"
   const isProtectedRoute = !isAuthPage && request.nextUrl.pathname !== "/"
