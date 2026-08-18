@@ -19,9 +19,18 @@ export async function getUser(id: string): Promise<User | undefined> {
 }
 
 export async function createUser(data: Omit<User, "id" | "createdAt">): Promise<User> {
-  const row = { ...toSnake(data as Record<string, unknown>), password: data.password || "mudar123", id: generateId(), created_at: new Date().toISOString() }
+  const password = data.password || "mudar123"
+  const row = { ...toSnake(data as Record<string, unknown>), password, id: generateId(), created_at: new Date().toISOString() }
   const { error } = await supabase.from("users").insert(row)
   if (error) throw error
+
+  // Criar no Supabase Auth pra poder logar
+  await supabase.auth.signUp({
+    email: data.email,
+    password,
+    options: { data: { role: data.role, name: data.name, user_id: row.id } },
+  })
+
   return toCamel<User>(row)
 }
 

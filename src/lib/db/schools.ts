@@ -37,9 +37,20 @@ export async function getSchool(id: string): Promise<School | undefined> {
 }
 
 export async function createSchool(data: Omit<School, "id" | "createdAt">): Promise<School> {
-  const school = { ...toSnake(data as Record<string, unknown>), id: generateId(), created_at: new Date().toISOString() }
+  const password = data.password || "mudar123"
+  const school = { ...toSnake(data as Record<string, unknown>), password, id: generateId(), created_at: new Date().toISOString() }
   const { error } = await supabase.from("schools").insert(school)
   if (error) throw error
+
+  // Criar no Supabase Auth pra poder logar
+  if (data.email) {
+    await supabase.auth.signUp({
+      email: data.email,
+      password,
+      options: { data: { role: "escola", name: data.name, school_id: school.id } },
+    })
+  }
+
   return toCamel<School>(school)
 }
 
