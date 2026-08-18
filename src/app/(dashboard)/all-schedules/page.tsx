@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Calendar } from "lucide-react"
 import { usePageHeader } from "@/lib/page-header"
+import { SchedulesSkeleton } from "@/components/skeletons/schedules-skeleton"
 import {
   Card,
   CardContent,
@@ -119,13 +120,7 @@ export default function AllSchedulesPage() {
     load()
   }, [filterYear])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <SchedulesSkeleton />
 
   const hasAny = groupedByDay.some((g) => g.schedules.length > 0)
 
@@ -169,7 +164,7 @@ export default function AllSchedulesPage() {
       {groupedByDay.map(({ day, schedules }, idx) => {
         if (schedules.length === 0) return null
 
-        return (
+  return (
           <Card key={day} className="pt-0 h-fit">
             <CardHeader className={`bg-gradient-to-r ${[
               "from-primary/20 to-secondary/10",

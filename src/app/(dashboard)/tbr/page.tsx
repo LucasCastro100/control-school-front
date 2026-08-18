@@ -34,6 +34,7 @@ import {
   deleteTbrCategory,
   getAllTbrTeams,
 } from "@/lib/db"
+import { TbrSkeleton } from "@/components/skeletons/tbr-skeleton"
 
 export default function TbrPage() {
   const [categories, setCategories] = useState<TbrCategory[]>([])
@@ -43,6 +44,7 @@ export default function TbrPage() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
+  const [pageLoading, setPageLoading] = useState(true)
   const { setHeader } = usePageHeader()
 
   async function refresh() {
@@ -54,6 +56,7 @@ export default function TbrPage() {
       counts[team.categoryId] = (counts[team.categoryId] ?? 0) + 1
     }
     setTeamCounts(counts)
+    setPageLoading(false)
   }
 
   useEffect(() => {
@@ -115,6 +118,8 @@ export default function TbrPage() {
     setDeleteTarget(null)
     await refresh()
   }
+
+  if (pageLoading) return <TbrSkeleton />
 
   return (
     <>

@@ -30,6 +30,7 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Badge } from "@/components/ui/badge"
 import { usePageHeader } from "@/lib/page-header"
+import { SchedulesSkeleton } from "@/components/skeletons/schedules-skeleton"
 import type { Schedule, Class, School, Room, DayOfWeek } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
@@ -77,6 +78,7 @@ export default function SchedulesPage({
   const [subject, setSubject] = useState("")
   const [teacher, setTeacher] = useState("")
   const [fortnight, setFortnight] = useState("1")
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
@@ -89,6 +91,7 @@ export default function SchedulesPage({
       if (roomList.length > 0 && !selectedRoom) {
         setSelectedRoom("all")
       }
+      setPageLoading(false)
     }
     load()
   }, [id, classId])
@@ -205,6 +208,8 @@ export default function SchedulesPage({
       </Button>
     )
   }, [cls?.name])
+
+  if (pageLoading) return <SchedulesSkeleton />
 
   return (
     <>

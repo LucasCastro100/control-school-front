@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
+import { ItemsSkeleton } from "@/components/skeletons/items-skeleton"
 import type { Item, School, NapItem } from "@/lib/types"
 import {
   getAllItems,
@@ -72,6 +73,7 @@ function ItemsContent() {
   const { setHeader } = usePageHeader()
 
   const [academicYears, setAcademicYears] = useState<string[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
@@ -83,6 +85,7 @@ function ItemsContent() {
       if (sId) setFilterSchoolId(sId)
       const y = searchParams.get("year")
       if (y) setFilterYear(y)
+      setPageLoading(false)
     }
     load()
   }, [])
@@ -196,6 +199,8 @@ function ItemsContent() {
 
   const tapetes = displayedItems.filter((i) => i.category === "tapete")
   const tecnologias = displayedItems.filter((i) => i.category === "tecnologia")
+
+  if (pageLoading) return <ItemsSkeleton />
 
   return (
     <>

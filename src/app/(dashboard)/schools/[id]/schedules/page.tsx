@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
+import { SchedulesSkeleton } from "@/components/skeletons/schedules-skeleton"
 import type { School, DayOfWeek, User, OrientadorSchedule } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
@@ -233,13 +234,7 @@ function GeneralSchedulesContent({
     setOrientadorSchedules(updated)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <SchedulesSkeleton />
 
   const hasAny =
     groupedByDay.some((g) => g.schedules.length > 0) ||
