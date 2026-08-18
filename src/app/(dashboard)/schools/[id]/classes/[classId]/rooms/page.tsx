@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { usePageHeader } from "@/lib/page-header"
+import { RoomsSkeleton } from "@/components/skeletons/rooms-skeleton"
 import type { Room, Class, School } from "@/lib/types"
 import {
   getSchool,
@@ -55,6 +56,7 @@ export default function RoomsPage({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const [studentCount, setStudentCount] = useState(0)
+  const [pageLoading, setPageLoading] = useState(true)
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
@@ -67,6 +69,7 @@ export default function RoomsPage({
       setSchool(schoolData ?? null)
       setCls(classData ?? null)
       setRooms(roomsData)
+      setPageLoading(false)
     }
     load()
   }, [id, classId])
@@ -130,6 +133,8 @@ export default function RoomsPage({
     setDeleteTarget(null)
     refresh()
   }
+
+  if (pageLoading) return <RoomsSkeleton />
 
   return (
     <>

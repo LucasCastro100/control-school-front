@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
+import { ClassesSkeleton } from "@/components/skeletons/classes-skeleton"
 import type { Class, School, Item, NapItem, Room } from "@/lib/types"
 import {
   getSchool,
@@ -110,6 +111,7 @@ export default function ClassesPage() {
   const [addingRoom, setAddingRoom] = useState(false)
   const [roomDeleteTarget, setRoomDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [academicYears, setAcademicYears] = useState<string[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
@@ -124,6 +126,7 @@ export default function ClassesPage() {
       if (!years.includes(filterYear)) {
         setFilterYear(years[0] || String(new Date().getFullYear()))
       }
+      setPageLoading(false)
     }
     init()
   }, [id])
@@ -347,6 +350,8 @@ export default function ClassesPage() {
   if (otherClasses.length > 0) {
     segmentoGroups.push({ segmento: "Outros", classes: otherClasses })
   }
+
+  if (pageLoading) return <ClassesSkeleton />
 
   return (
     <>

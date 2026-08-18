@@ -34,6 +34,7 @@ import {
   deleteUser,
 } from "@/lib/db"
 import { createClient } from "@/utils/supabase/client"
+import { AdvisorsSkeleton } from "@/components/skeletons/advisors-skeleton"
 
 const supabase = createClient()
 
@@ -47,6 +48,7 @@ export default function OrientadoresPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [pageLoading, setPageLoading] = useState(true)
 
   const { setHeader } = usePageHeader()
 
@@ -60,6 +62,7 @@ export default function OrientadoresPage() {
         counts[link.user_id] = (counts[link.user_id] ?? 0) + 1
       }
       setSchoolCounts(counts)
+      setPageLoading(false)
     }
     load()
   }, [])
@@ -140,6 +143,8 @@ export default function OrientadoresPage() {
     setDeleteTarget(null)
     await refresh()
   }
+
+  if (pageLoading) return <AdvisorsSkeleton />
 
   return (
     <>

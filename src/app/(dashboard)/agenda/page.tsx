@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
+import { AgendaSkeleton } from "@/components/skeletons/agenda-skeleton"
 import type { AuthUser, User, AgendaItem } from "@/lib/types"
 import {
   getSession,
@@ -94,6 +95,7 @@ export default function AgendaPage() {
   const [formEnd, setFormEnd] = useState("")
   const [formActivity, setFormActivity] = useState("")
   const [saving, setSaving] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
   const { setHeader } = usePageHeader()
 
   const isAdmin = user?.role === "admin"
@@ -105,6 +107,7 @@ export default function AgendaPage() {
       const [o, i] = await Promise.all([getUsersByRole("orientador"), getAgendaItems()])
       setOrientadores(o)
       setItems(i)
+      setPageLoading(false)
     }
     load()
   }, [])
@@ -286,7 +289,9 @@ export default function AgendaPage() {
               const inMonth = day.getMonth() === current.month
               const today = key === todayKey
               const dayItems = itemsByDate.get(key) ?? []
-              return (
+  if (pageLoading) return <AgendaSkeleton />
+
+  return (
                 <div
                   key={key}
                   onClick={() => openCreate(day)}

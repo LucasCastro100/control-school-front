@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { SchoolsSkeleton } from "@/components/skeletons/schools-skeleton"
 import type { School, User, Class, TbrCategory } from "@/lib/types"
 import {
   getSchools,
@@ -97,6 +98,7 @@ export default function SchoolsPage() {
   const [schoolOrientadorMap, setSchoolOrientadorMap] = useState<Record<string, string>>({})
   const [schoolOrientadorIdMap, setSchoolOrientadorIdMap] = useState<Record<string, string>>({})
   const [schoolYears, setSchoolYears] = useState<string[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
 
   const { setHeader } = usePageHeader()
 
@@ -149,6 +151,7 @@ export default function SchoolsPage() {
         stats[school.id] = { classes: classes.length, students, teams: teamsCount }
       }
       setSchoolStats(stats)
+      setPageLoading(false)
     }
     load()
   }, [filterYear, isOrientador, myOrientadorId])
@@ -413,6 +416,8 @@ export default function SchoolsPage() {
   }
 
   const allStates = Array.from(new Set(schools.map((s) => s.state).filter(Boolean)))
+
+  if (pageLoading) return <SchoolsSkeleton />
 
   return (
     <>
