@@ -1,104 +1,80 @@
 import type { AuthUser } from "../types"
 import { createClient } from "@/utils/supabase/client"
 
-export async function login(email: string, password: string): Promise<AuthUser | null> {
+export type LoginError = "invalid" | "email_not_confirmed" | null
+
+export async function login(email: string, password: string): Promise<{ user: AuthUser | null; error: LoginError }> {
   const supabase = createClient()
 
-  if (email === "lucascastro121295@gmail.com" && password === "mudar123") {
-    const fakeEmail = "admin@control-school.app"
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: fakeEmail,
-      password: "mudar123",
-    })
-    if (signInError) {
-      await supabase.auth.signUp({
-        email: fakeEmail,
-        password: "mudar123",
-        options: { data: { role: "admin", name: "Lucas" } },
-      })
-      await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: "mudar123",
-      })
+  // Login direto via Supabase Auth
+  const { data, error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (signInError) {
+    if (signInError.message?.includes("Email not confirmed")) {
+      return { user: null, error: "email_not_confirmed" }
     }
-    return { email, name: "Lucas", role: "admin" }
+    return { user: null, error: "invalid" }
   }
 
-  // Buscar na tabela users
+  if (!data.user) return { user: null, error: "invalid" }
+
+  const meta = data.user.user_metadata
+
+  // Se é admin (cadastrado direto no Supabase Auth)
+  if (meta?.role === "admin") {
+    return {
+      user: {
+        email: data.user.email ?? "",
+        name: meta.name ?? "Admin",
+        role: "admin",
+      },
+      error: null,
+    }
+  }
+
+  // Buscar na tabela users (orientador/professor)
   const { data: users } = await supabase.from("users").select("*")
   const found = users?.find(
-    (u) => u.email?.toLowerCase() === email.trim().toLowerCase() && u.password === password
+    (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
   )
   if (found) {
-    // Criar sessão via Supabase Auth (email fake pra manter sessão)
-    const fakeEmail = `auth-${found.id}@control-school.app`
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: fakeEmail,
-      password: found.password || "mudar123",
-    })
-
-    // Se não existe no Supabase Auth, criar
-    if (signInError) {
-      await supabase.auth.signUp({
-        email: fakeEmail,
-        password: found.password || "mudar123",
-        options: { data: { role: found.role, user_id: found.id, name: found.name } },
-      })
-      await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: found.password || "mudar123",
-      })
+    return {
+      user: {
+        email: found.email,
+        name: found.name,
+        role: found.role,
+        userId: found.id,
+      },
+      error: null,
     }
-
-    const user: AuthUser = {
-      email: found.email,
-      name: found.name,
-      role: found.role,
-      userId: found.id,
-    }
-    return user
   }
 
   // Buscar na tabela schools
   const { data: schools } = await supabase.from("schools").select("*")
   const school = schools?.find(
-    (s) => s.email?.toLowerCase() === email.trim().toLowerCase() && s.password === password
+    (s) => s.email?.toLowerCase() === email.trim().toLowerCase()
   )
   if (school) {
-    const fakeEmail = `school-${school.id}@control-school.app`
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: fakeEmail,
-      password: school.password || "mudar123",
-    })
-
-    if (signInError) {
-      await supabase.auth.signUp({
-        email: fakeEmail,
-        password: school.password || "mudar123",
-        options: { data: { role: "escola", school_id: school.id, name: school.name } },
-      })
-      await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: school.password || "mudar123",
-      })
+    return {
+      user: {
+        email: school.email,
+        name: school.name,
+        role: "escola",
+        schoolId: school.id,
+      },
+      error: null,
     }
-
-    const user: AuthUser = { email: school.email, name: school.name, role: "escola", schoolId: school.id }
-    return user
   }
 
-  return null
+  return { user: null, error: "invalid" }
 }
 
 export async function logout(): Promise<void> {
   const supabase = createClient()
   await supabase.auth.signOut()
-}
-
-export function getAuthUser(): AuthUser | null {
-  // Agora o session é gerenciado pelo middleware via cookies
-  // Esta função retorna null - use getSession() para dados reais
-  return null
 }
 
 export async function getSession(): Promise<AuthUser | null> {

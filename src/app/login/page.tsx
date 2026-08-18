@@ -44,7 +44,7 @@ export default function LoginPage() {
 
     setLoading(true)
 
-    const user = await login(result.data.email.trim(), result.data.password)
+    const { user, error: loginError } = await login(result.data.email.trim(), result.data.password)
     if (user) {
       if (user.role === "escola") {
         router.push(user.schoolId ? `/schools/${user.schoolId}/classes` : "/login")
@@ -52,7 +52,11 @@ export default function LoginPage() {
         router.push("/schools")
       }
     } else {
-      setServerError("Email ou senha inválidos.")
+      if (loginError === "email_not_confirmed") {
+        setServerError("Email ainda não confirmado. Verifique sua caixa de entrada.")
+      } else {
+        setServerError("Email ou senha inválidos.")
+      }
       setLoading(false)
     }
   }
