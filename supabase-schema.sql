@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS schedules (
   fortnight INTEGER CHECK (fortnight IN (0, 1, 2))
 );
 
--- Tabela: orientador_schedules (orientador_id agora referencia users)
+-- Tabela: orientador_schedules
 CREATE TABLE IF NOT EXISTS orientador_schedules (
   id TEXT PRIMARY KEY,
   school_id TEXT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS nap_items (
   year TEXT NOT NULL
 );
 
--- Tabela: agenda
+-- Tabela: agenda (SEM orientador_id)
 CREATE TABLE IF NOT EXISTS agenda (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,
@@ -120,7 +120,13 @@ CREATE TABLE IF NOT EXISTS agenda (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Tabela: agenda_orientadores (pivot agenda <-> users)
+-- Remove coluna antiga se existir
+DO $$ BEGIN
+  ALTER TABLE agenda DROP COLUMN IF EXISTS orientador_id;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- Tabela: agenda_orientadores (pivot)
 CREATE TABLE IF NOT EXISTS agenda_orientadores (
   agenda_id TEXT NOT NULL REFERENCES agenda(id) ON DELETE CASCADE,
   orientador_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -159,18 +165,45 @@ ALTER TABLE agenda_orientadores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tbr_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tbr_teams ENABLE ROW LEVEL SECURITY;
 
--- Políticas permissivas
+-- Políticas permissivas (DROP IF EXISTS antes de criar)
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON users; END $$;
 CREATE POLICY "Allow all" ON users FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON user_schools; END $$;
 CREATE POLICY "Allow all" ON user_schools FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON schools; END $$;
 CREATE POLICY "Allow all" ON schools FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON classes; END $$;
 CREATE POLICY "Allow all" ON classes FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON rooms; END $$;
 CREATE POLICY "Allow all" ON rooms FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON schedules; END $$;
 CREATE POLICY "Allow all" ON schedules FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON orientador_schedules; END $$;
 CREATE POLICY "Allow all" ON orientador_schedules FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON segment_configs; END $$;
 CREATE POLICY "Allow all" ON segment_configs FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON items; END $$;
 CREATE POLICY "Allow all" ON items FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON nap_items; END $$;
 CREATE POLICY "Allow all" ON nap_items FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON agenda; END $$;
 CREATE POLICY "Allow all" ON agenda FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON agenda_orientadores; END $$;
 CREATE POLICY "Allow all" ON agenda_orientadores FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON tbr_categories; END $$;
 CREATE POLICY "Allow all" ON tbr_categories FOR ALL USING (true) WITH CHECK (true);
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Allow all" ON tbr_teams; END $$;
 CREATE POLICY "Allow all" ON tbr_teams FOR ALL USING (true) WITH CHECK (true);
