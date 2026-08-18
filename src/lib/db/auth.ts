@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/client"
 export async function login(email: string, password: string): Promise<AuthUser | null> {
   const supabase = createClient()
 
-  if (email === "admin@gmail.com" && password === "mudar123") {
+  if (email === "lucascastro121295@gmail.com" && password === "mudar123") {
     const fakeEmail = "admin@control-school.app"
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: fakeEmail,
@@ -14,14 +14,14 @@ export async function login(email: string, password: string): Promise<AuthUser |
       await supabase.auth.signUp({
         email: fakeEmail,
         password: "mudar123",
-        options: { data: { role: "admin", name: "Administrador" } },
+        options: { data: { role: "admin", name: "Lucas" } },
       })
       await supabase.auth.signInWithPassword({
         email: fakeEmail,
         password: "mudar123",
       })
     }
-    return { email, name: "Administrador", role: "admin" }
+    return { email, name: "Lucas", role: "admin" }
   }
 
   // Buscar na tabela users

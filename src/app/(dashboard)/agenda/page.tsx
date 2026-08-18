@@ -96,7 +96,7 @@ export default function AgendaPage() {
   const [saving, setSaving] = useState(false)
   const { setHeader } = usePageHeader()
 
-  const isAdmin = user?.email === "admin@gmail.com" || user?.role === "admin"
+  const isAdmin = user?.role === "admin"
 
   useEffect(() => {
     async function load() {
