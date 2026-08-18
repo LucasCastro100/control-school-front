@@ -3,34 +3,48 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { GraduationCap, LogIn, Eye, EyeOff } from "lucide-react"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { login } from "@/lib/db"
 
+const loginSchema = z.object({
+  email: z.string().min(1, "Email é obrigatório.").email("Email inválido."),
+  password: z.string().min(1, "Senha é obrigatória."),
+})
+
+type LoginFormData = z.infer<typeof loginSchema>
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
+  const [errors, setErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({})
+  const [serverError, setServerError] = useState("")
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError("")
+    setErrors({})
+    setServerError("")
 
-    if (!email.trim() || !password.trim()) {
-      setError("Preencha todos os campos.")
+    const result = loginSchema.safeParse({ email, password })
+    if (!result.success) {
+      const fieldErrors: Partial<Record<keyof LoginFormData, string>> = {}
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as keyof LoginFormData
+        fieldErrors[field] = issue.message
+      }
+      setErrors(fieldErrors)
       return
     }
 
     setLoading(true)
 
-    await new Promise((r) => setTimeout(r, 300))
-
-    const user = await login(email.trim(), password)
+    const user = await login(result.data.email.trim(), result.data.password)
     if (user) {
       if (user.role === "escola") {
         router.push(user.schoolId ? `/schools/${user.schoolId}/classes` : "/login")
@@ -38,7 +52,7 @@ export default function LoginPage() {
         router.push("/schools")
       }
     } else {
-      setError("Email ou senha inválidos.")
+      setServerError("Email ou senha inválidos.")
       setLoading(false)
     }
   }
@@ -71,6 +85,9 @@ export default function LoginPage() {
                 placeholder="admin@gmail.com"
                 autoComplete="email"
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Senha</Label>
@@ -93,9 +110,12 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
+            {serverError && (
+              <p className="text-sm text-destructive">{serverError}</p>
             )}
             <Button type="submit" className="w-full gap-2" disabled={loading}>
               <LogIn className="size-4" />
