@@ -3,6 +3,22 @@
 -- Execute este SQL no Supabase SQL Editor
 -- ============================================
 
+-- Tabela: schools (criada primeiro para foreign keys)
+CREATE TABLE IF NOT EXISTS schools (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  address TEXT DEFAULT '',
+  region TEXT DEFAULT '',
+  state TEXT DEFAULT '',
+  city TEXT DEFAULT '',
+  color TEXT,
+  email TEXT,
+  password TEXT,
+  schedule_type TEXT CHECK (schedule_type IN ('semanal', 'quinzenal')),
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Tabela: users (unifica admin, orientador e professor)
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -18,22 +34,6 @@ CREATE TABLE IF NOT EXISTS user_schools (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   school_id TEXT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   PRIMARY KEY (user_id, school_id)
-);
-
--- Tabela: schools
-CREATE TABLE IF NOT EXISTS schools (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  address TEXT DEFAULT '',
-  region TEXT DEFAULT '',
-  state TEXT DEFAULT '',
-  city TEXT DEFAULT '',
-  color TEXT,
-  email TEXT,
-  password TEXT,
-  schedule_type TEXT CHECK (schedule_type IN ('semanal', 'quinzenal')),
-  active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Tabela: classes
