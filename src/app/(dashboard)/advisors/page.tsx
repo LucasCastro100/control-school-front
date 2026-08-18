@@ -33,7 +33,9 @@ import {
   updateUser,
   deleteUser,
 } from "@/lib/db"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
+
+const supabase = createClient()
 
 export default function OrientadoresPage() {
   const [orientadores, setOrientadores] = useState<User[]>([])

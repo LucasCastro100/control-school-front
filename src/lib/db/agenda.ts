@@ -1,5 +1,6 @@
 import type { AgendaItem } from "../types"
-import { supabase } from "../supabase"
+import { createClient } from "@/utils/supabase/client"
+const supabase = createClient()
 import { generateId, toCamel, toSnake } from "./helpers"
 
 export async function getAgendaItems(): Promise<AgendaItem[]> {

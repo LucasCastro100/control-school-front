@@ -1,5 +1,6 @@
 import type { Item } from "../types"
-import { supabase } from "../supabase"
+import { createClient } from "@/utils/supabase/client"
+const supabase = createClient()
 import { generateId, toCamel } from "./helpers"
 
 export async function getAllItems(): Promise<Item[]> {

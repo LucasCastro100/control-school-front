@@ -26,7 +26,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
 import type { AuthUser, User, AgendaItem } from "@/lib/types"
 import {
-  getAuthUser,
+  getSession,
   getUsersByRole,
   getAgendaItems,
   createAgendaItem,
@@ -99,8 +99,9 @@ export default function AgendaPage() {
   const isAdmin = user?.email === "admin@gmail.com" || user?.role === "admin"
 
   useEffect(() => {
-    setUser(getAuthUser())
     async function load() {
+      const session = await getSession()
+      setUser(session)
       const [o, i] = await Promise.all([getUsersByRole("orientador"), getAgendaItems()])
       setOrientadores(o)
       setItems(i)

@@ -32,8 +32,8 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname()
   const router = useRouter()
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     router.push("/login")
   }
 
@@ -51,8 +51,8 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
           : []
         : routes
 
-  function handleExport() {
-    const data = exportStorageData()
+  async function handleExport() {
+    const data = await exportStorageData()
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -66,10 +66,10 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
     const file = event.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = JSON.parse(e.target?.result as string)
-        importStorageData(data)
+        await importStorageData(data)
         router.refresh()
         window.location.reload()
       } catch {

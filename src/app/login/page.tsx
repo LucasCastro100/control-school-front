@@ -32,9 +32,7 @@ export default function LoginPage() {
 
     const user = await login(email.trim(), password)
     if (user) {
-      if (user.role === "orientador") {
-        router.push("/agenda")
-      } else if (user.role === "escola") {
+      if (user.role === "escola") {
         router.push(user.schoolId ? `/schools/${user.schoolId}/classes` : "/login")
       } else {
         router.push("/schools")

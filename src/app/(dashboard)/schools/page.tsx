@@ -49,7 +49,7 @@ import {
   getSchoolsByUser,
   getUsersBySchool,
   replaceUserSchools,
-  getAuthUser,
+  getSession,
 } from "@/lib/db"
 import { REGIONS } from "@/lib/brazil-data"
 import { fetchStatesByRegion, fetchCitiesByState } from "@/lib/ibge-api"
@@ -58,7 +58,7 @@ const PAGE_SIZES = [10, 20, 50, 100]
 
 export default function SchoolsPage() {
   const router = useRouter()
-  const authUser = getAuthUser()
+  const [authUser, setAuthUser] = useState<import("@/lib/types").AuthUser | null>(null)
   const isOrientador = authUser?.role === "orientador"
   const myOrientadorId = authUser?.userId
   const [schools, setSchools] = useState<School[]>([])
@@ -103,6 +103,8 @@ export default function SchoolsPage() {
 
   useEffect(() => {
     async function load() {
+      const session = await getSession()
+      setAuthUser(session)
       const orientadoresList = await getUsersByRole("orientador")
       setOrientadores(orientadoresList)
       setTbrCategories(await getTbrCategories())

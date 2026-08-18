@@ -1,6 +1,6 @@
 // Re-exports from all domain modules
 export { generateId, toCamel, toSnake } from "./helpers"
-export { login, logout, getAuthUser } from "./auth"
+export { login, logout, getAuthUser, getSession } from "./auth"
 export { getUsers, getUsersByRole, getUser, createUser, updateUser, deleteUser, getSchoolsByUser, getUsersBySchool, addUserSchool, removeUserSchool, replaceUserSchools } from "./users"
 export { getSchools, getSchoolsByYear, getSchoolYears, getAcademicYears, getSchool, createSchool, updateSchool, deleteSchool } from "./schools"
 export { getClasses, getClassesBySchool, getClass, getClassesBySchoolAndYear, createClass, updateClass, deleteClass } from "./classes"
@@ -30,7 +30,8 @@ import { getAllNapItems } from "./nap-items"
 import { getUsers } from "./users"
 import { getAgendaItems } from "./agenda"
 import { getTbrCategories, getAllTbrTeams } from "./tbr"
-import { supabase } from "../supabase"
+import { createClient } from "@/utils/supabase/client"
+const supabase = createClient()
 import { toSnake } from "./helpers"
 
 export async function exportStorageData(): Promise<Record<string, unknown[]>> {
