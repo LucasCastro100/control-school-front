@@ -7,8 +7,34 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+const DialogCloseContext = React.createContext<{
+  markClosedByButton: () => void
+}>({ markClosedByButton: () => {} })
+
+function Dialog({ onOpenChange, ...props }: DialogPrimitive.Root.Props) {
+  const closedByButton = React.useRef(false)
+
+  function handleOpenChange(open: boolean, eventDetails: DialogPrimitive.Root.ChangeEventDetails) {
+    if (!open && !closedByButton.current) return
+    closedByButton.current = false
+    onOpenChange?.(open, eventDetails)
+  }
+
+  function markClosedByButton() {
+    closedByButton.current = true
+  }
+
+  return (
+    <DialogCloseContext.Provider value={{ markClosedByButton }}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        onOpenChange={handleOpenChange}
+        {...props}
+      >
+        {props.children}
+      </DialogPrimitive.Root>
+    </DialogCloseContext.Provider>
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -19,8 +45,18 @@ function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
-function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+function DialogClose({ onClick, ...props }: DialogPrimitive.Close.Props) {
+  const { markClosedByButton } = React.useContext(DialogCloseContext)
+  return (
+    <DialogPrimitive.Close
+      data-slot="dialog-close"
+      onClick={(e) => {
+        markClosedByButton()
+        onClick?.(e)
+      }}
+      {...props}
+    />
+  )
 }
 
 function DialogOverlay({
@@ -60,8 +96,7 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
+          <DialogClose
             render={
               <Button
                 variant="ghost"
@@ -73,7 +108,7 @@ function DialogContent({
             <XIcon
             />
             <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
+          </DialogClose>
         )}
       </DialogPrimitive.Popup>
     </DialogPortal>
@@ -109,15 +144,15 @@ function DialogFooter({
     >
       {children}
       {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>
+        <DialogClose render={<Button variant="outline" />}>
           Close
-        </DialogPrimitive.Close>
+        </DialogClose>
       )}
     </div>
   )
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props & { className?: string }) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
