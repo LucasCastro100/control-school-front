@@ -112,45 +112,53 @@ export default function ClassesPage() {
   const [roomStudentCount, setRoomStudentCount] = useState("")
   const [addingRoom, setAddingRoom] = useState(false)
   const [roomDeleteTarget, setRoomDeleteTarget] = useState<{ id: string; label: string } | null>(null)
+  const [academicYears, setAcademicYears] = useState<string[]>([])
+  const [roomStudentCounts, setRoomStudentCounts] = useState<Record<string, number>>({})
   const { setHeader } = usePageHeader()
 
-  const academicYears = getAcademicYears()
-
   useEffect(() => {
-    setSchool(getSchool(id) ?? null)
-    setItems(getAllItems())
-    setAvailableYears(academicYears)
-    if (!academicYears.includes(filterYear)) {
-      setFilterYear(academicYears[0] || String(new Date().getFullYear()))
+    async function init() {
+      const years = await getAcademicYears()
+      setAcademicYears(years)
+      const s = await getSchool(id)
+      setSchool(s ?? null)
+      const allItems = await getAllItems()
+      setItems(allItems)
+      setAvailableYears(years)
+      if (!years.includes(filterYear)) {
+        setFilterYear(years[0] || String(new Date().getFullYear()))
+      }
     }
+    init()
   }, [id])
 
   useEffect(() => {
     loadData()
   }, [filterYear])
 
-  function loadData() {
-    const classList = getClassesBySchoolAndYear(id, filterYear)
+  async function loadData() {
+    const classList = await getClassesBySchoolAndYear(id, filterYear)
     setClasses(classList)
 
     const stats: Record<string, { rooms: number; students: number; biggestRoom: string }> = {}
     for (const cls of classList) {
-      const rooms = getRoomsByClass(cls.id)
+      const classRooms = await getRoomsByClass(cls.id)
       let students = 0
       let biggest = ""
       let biggestCount = 0
-      for (const room of rooms) {
-        const count = getStudentsByRoom(room.id).length
+      for (const room of classRooms) {
+        const roomStudents = await getStudentsByRoom(room.id)
+        const count = roomStudents.length
         students += count
         if (count > biggestCount) {
           biggestCount = count
           biggest = `${room.name} (${count})`
         }
       }
-      stats[cls.id] = { rooms: rooms.length, students, biggestRoom: biggest || "-" }
+      stats[cls.id] = { rooms: classRooms.length, students, biggestRoom: biggest || "-" }
     }
     setClassStats(stats)
-    setNapItems(getNapItemsBySchoolAndYear(id, filterYear))
+    setNapItems(await getNapItemsBySchoolAndYear(id, filterYear))
   }
 
   useEffect(() => {
@@ -185,8 +193,8 @@ export default function ClassesPage() {
     )
   }, [school?.name, id, filterYear])
 
-  function refresh() {
-    loadData()
+  async function refresh() {
+    await loadData()
     router.refresh()
   }
 
@@ -221,38 +229,36 @@ export default function ClassesPage() {
     setOpen(true)
   }
 
-  function handleSave(closeAfter: boolean) {
+  async function handleSave(closeAfter: boolean) {
     if (!segmento || !name.trim()) return
     const yearValue = editingClass ? editingClass.year : filterYear
     if (!yearValue) return
     setSaving(true)
-    setTimeout(() => {
-      if (editingClass) {
-        updateClass(editingClass.id, { nap: segmento, name: name.trim() })
-      } else {
-        createClass({ schoolId: id, nap: segmento, name: name.trim(), year: yearValue })
-      }
-      setSaving(false)
-      refresh()
-      if (closeAfter) {
-        handleOpenChange(false)
-      } else {
-        setSegmento("")
-        setClassYear("")
-        setName("")
-      }
-    }, 0)
+    if (editingClass) {
+      await updateClass(editingClass.id, { nap: segmento, name: name.trim() })
+    } else {
+      await createClass({ schoolId: id, nap: segmento, name: name.trim(), year: yearValue })
+    }
+    setSaving(false)
+    await refresh()
+    if (closeAfter) {
+      handleOpenChange(false)
+    } else {
+      setSegmento("")
+      setClassYear("")
+      setName("")
+    }
   }
 
   function handleDelete(classId: string, label: string) {
     setDeleteTarget({ id: classId, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteClass(deleteTarget.id)
+    await deleteClass(deleteTarget.id)
     setDeleteTarget(null)
-    refresh()
+    await refresh()
   }
 
   function openItemDialog(segName: string) {
@@ -267,67 +273,84 @@ export default function ClassesPage() {
     setItemDialog(true)
   }
 
-  function openRoomsDialog(cls: Class) {
+  async function openRoomsDialog(cls: Class) {
     setRoomsTarget(cls)
-    setRooms(getRoomsByClass(cls.id))
+    const classRooms = await getRoomsByClass(cls.id)
+    setRooms(classRooms)
+    const counts: Record<string, number> = {}
+    for (const room of classRooms) {
+      const students = await getStudentsByRoom(room.id)
+      counts[room.id] = students.length
+    }
+    setRoomStudentCounts(counts)
     setRoomName("")
     setRoomStudentCount("")
     setRoomsDialog(true)
   }
 
-  function handleAddRoom(closeAfter: boolean) {
+  async function handleAddRoom(closeAfter: boolean) {
     if (!roomsTarget || !roomName.trim()) return
     const count = parseInt(roomStudentCount) || 0
     setAddingRoom(true)
-    setTimeout(() => {
-      const room = createRoom({ classId: roomsTarget.id, name: roomName.trim() })
-      const prefix = String(Date.now()).slice(-6)
-      for (let i = 1; i <= count; i++) {
-        createStudent({
-          roomId: room.id,
-          name: `Aluno ${i}`,
-          registrationNumber: `${prefix}${String(i).padStart(2, "0")}`,
-        })
-      }
-      setRooms(getRoomsByClass(roomsTarget.id))
-      setRoomName("")
-      setRoomStudentCount("")
-      setAddingRoom(false)
-      refresh()
-      if (closeAfter) {
-        setRoomsDialog(false)
-      }
-    }, 0)
+    const room = await createRoom({ classId: roomsTarget.id, name: roomName.trim() })
+    const prefix = String(Date.now()).slice(-6)
+    for (let i = 1; i <= count; i++) {
+      await createStudent({
+        roomId: room.id,
+        name: `Aluno ${i}`,
+        registrationNumber: `${prefix}${String(i).padStart(2, "0")}`,
+      })
+    }
+    const classRooms = await getRoomsByClass(roomsTarget.id)
+    setRooms(classRooms)
+    const counts: Record<string, number> = {}
+    for (const r of classRooms) {
+      const students = await getStudentsByRoom(r.id)
+      counts[r.id] = students.length
+    }
+    setRoomStudentCounts(counts)
+    setRoomName("")
+    setRoomStudentCount("")
+    setAddingRoom(false)
+    await refresh()
+    if (closeAfter) {
+      setRoomsDialog(false)
+    }
   }
 
-  function confirmRoomDelete() {
+  async function confirmRoomDelete() {
     if (!roomDeleteTarget) return
-    deleteRoom(roomDeleteTarget.id)
+    await deleteRoom(roomDeleteTarget.id)
     setRoomDeleteTarget(null)
     if (roomsTarget) {
-      setRooms(getRoomsByClass(roomsTarget.id))
+      const classRooms = await getRoomsByClass(roomsTarget.id)
+      setRooms(classRooms)
+      const counts: Record<string, number> = {}
+      for (const r of classRooms) {
+        const students = await getStudentsByRoom(r.id)
+        counts[r.id] = students.length
+      }
+      setRoomStudentCounts(counts)
     }
-    refresh()
+    await refresh()
   }
 
-  function handleSaveItems() {
+  async function handleSaveItems() {
     setSavingItems(true)
-    setTimeout(() => {
-      for (const itemId of Object.keys(itemQuantities)) {
-        const qty = parseInt(itemQuantities[itemId]) || 0
-        if (qty > 0) {
-          upsertNapItem(id, itemSegName, itemId, qty, filterYear)
-        } else {
-          const existing = napItems.find(
-            (n) => n.segmentName === itemSegName && n.itemId === itemId
-          )
-          if (existing) deleteNapItem(existing.id)
-        }
+    for (const itemId of Object.keys(itemQuantities)) {
+      const qty = parseInt(itemQuantities[itemId]) || 0
+      if (qty > 0) {
+        await upsertNapItem(id, itemSegName, itemId, qty, filterYear)
+      } else {
+        const existing = napItems.find(
+          (n) => n.segmentName === itemSegName && n.itemId === itemId
+        )
+        if (existing) await deleteNapItem(existing.id)
       }
-      setNapItems(getNapItemsBySchoolAndYear(id, filterYear))
-      setSavingItems(false)
-      setItemDialog(false)
-    }, 0)
+    }
+    setNapItems(await getNapItemsBySchoolAndYear(id, filterYear))
+    setSavingItems(false)
+    setItemDialog(false)
   }
 
   const segmentYearOptions = segmento
@@ -532,7 +555,7 @@ export default function ClassesPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium">{room.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {getStudentsByRoom(room.id).length} alunos
+                        {roomStudentCounts[room.id] ?? 0} alunos
                       </span>
                     </div>
                     <div className="flex items-center gap-1">

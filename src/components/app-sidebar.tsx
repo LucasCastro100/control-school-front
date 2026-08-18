@@ -41,7 +41,10 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
 
   const userRoutes =
     user?.role === "orientador"
-      ? routes.filter((r) => r.href === "/agenda")
+      ? [
+          { href: "/schools", label: "Minhas Escolas", icon: School },
+          { href: "/agenda", label: "Agenda", icon: CalendarDays },
+        ]
       : user?.role === "escola"
         ? user.schoolId
           ? [{ href: `/schools/${user.schoolId}/classes`, label: "Minha Escola", icon: School }]

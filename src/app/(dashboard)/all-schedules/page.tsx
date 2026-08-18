@@ -49,9 +49,8 @@ export default function AllSchedulesPage() {
     { day: DayOfWeek; schedules: ScheduleEntry[] }[]
   >([])
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()))
+  const [academicYears, setAcademicYears] = useState<string[]>([])
   const { setHeader } = usePageHeader()
-
-  const academicYears = getAcademicYears()
 
   useEffect(() => {
     setHeader(
@@ -66,47 +65,58 @@ export default function AllSchedulesPage() {
   }, [])
 
   useEffect(() => {
-    const schools = getSchools()
-    const allClasses = getClasses().filter((c) => c.year === filterYear)
-    const allRooms = getRooms()
-    const allSchedules = getSchedules()
-
-    const schoolMap = new Map(schools.map((s) => [s.id, s]))
-    const classMap = new Map(allClasses.map((c) => [c.id, c]))
-    const roomMap = new Map(allRooms.map((r) => [r.id, r]))
-
-    const entries: ScheduleEntry[] = []
-
-    for (const schedule of allSchedules) {
-      const cls = classMap.get(schedule.classId)
-      if (!cls) continue
-      const school = schoolMap.get(cls.schoolId)
-      if (!school) continue
-      const room = roomMap.get(schedule.roomId)
-
-      entries.push({
-        id: schedule.id,
-        schoolName: school.name,
-        schoolColor: school.color ?? "",
-        roomName: room?.name ?? schedule.roomId,
-        className: cls.name,
-        subject: schedule.subject,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-        teacher: schedule.teacher,
-        dayOfWeek: schedule.dayOfWeek,
-      })
+    async function load() {
+      const years = await getAcademicYears()
+      setAcademicYears(years)
     }
+    load()
+  }, [])
 
-    const grouped = DAYS_OF_WEEK.map((_, idx) => ({
-      day: DAY_MAP[idx],
-      schedules: entries
-        .filter((e) => e.dayOfWeek === idx)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    }))
+  useEffect(() => {
+    async function load() {
+      const schools = await getSchools()
+      const allClasses = (await getClasses()).filter((c) => c.year === filterYear)
+      const allRooms = await getRooms()
+      const allSchedules = await getSchedules()
 
-    setGroupedByDay(grouped)
-    setLoading(false)
+      const schoolMap = new Map(schools.map((s) => [s.id, s]))
+      const classMap = new Map(allClasses.map((c) => [c.id, c]))
+      const roomMap = new Map(allRooms.map((r) => [r.id, r]))
+
+      const entries: ScheduleEntry[] = []
+
+      for (const schedule of allSchedules) {
+        const cls = classMap.get(schedule.classId)
+        if (!cls) continue
+        const school = schoolMap.get(cls.schoolId)
+        if (!school) continue
+        const room = roomMap.get(schedule.roomId)
+
+        entries.push({
+          id: schedule.id,
+          schoolName: school.name,
+          schoolColor: school.color ?? "",
+          roomName: room?.name ?? schedule.roomId,
+          className: cls.name,
+          subject: schedule.subject,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          teacher: schedule.teacher,
+          dayOfWeek: schedule.dayOfWeek,
+        })
+      }
+
+      const grouped = DAYS_OF_WEEK.map((_, idx) => ({
+        day: DAY_MAP[idx],
+        schedules: entries
+          .filter((e) => e.dayOfWeek === idx)
+          .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      }))
+
+      setGroupedByDay(grouped)
+      setLoading(false)
+    }
+    load()
   }, [filterYear])
 
   if (loading) {

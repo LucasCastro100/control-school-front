@@ -62,10 +62,19 @@ export default function StudentsPage({
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
-    setSchool(getSchool(id) ?? null)
-    setCls(getClass(classId) ?? null)
-    setRoom(getRoom(roomId) ?? null)
-    setStudents(getStudentsByRoom(roomId))
+    async function load() {
+      const [schoolData, classData, roomData, studentsData] = await Promise.all([
+        getSchool(id),
+        getClass(classId),
+        getRoom(roomId),
+        getStudentsByRoom(roomId),
+      ])
+      setSchool(schoolData ?? null)
+      setCls(classData ?? null)
+      setRoom(roomData ?? null)
+      setStudents(studentsData)
+    }
+    load()
   }, [id, classId, roomId])
 
   useEffect(() => {
@@ -83,8 +92,9 @@ export default function StudentsPage({
     )
   }, [room?.name])
 
-  function refresh() {
-    setStudents(getStudentsByRoom(roomId))
+  async function refresh() {
+    const studentsData = await getStudentsByRoom(roomId)
+    setStudents(studentsData)
     router.refresh()
   }
 
@@ -104,35 +114,33 @@ export default function StudentsPage({
     setOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim() || !registrationNumber.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      if (editingStudent) {
-        updateStudent(editingStudent.id, {
-          name: name.trim(),
-          registrationNumber: registrationNumber.trim(),
-        })
-      } else {
-        createStudent({
-          roomId,
-          name: name.trim(),
-          registrationNumber: registrationNumber.trim(),
-        })
-      }
-      handleOpenChange(false)
-      setSaving(false)
-      refresh()
-    }, 0)
+    if (editingStudent) {
+      await updateStudent(editingStudent.id, {
+        name: name.trim(),
+        registrationNumber: registrationNumber.trim(),
+      })
+    } else {
+      await createStudent({
+        roomId,
+        name: name.trim(),
+        registrationNumber: registrationNumber.trim(),
+      })
+    }
+    handleOpenChange(false)
+    setSaving(false)
+    refresh()
   }
 
   function handleDelete(studentId: string, label: string) {
     setDeleteTarget({ id: studentId, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteStudent(deleteTarget.id)
+    await deleteStudent(deleteTarget.id)
     setDeleteTarget(null)
     refresh()
   }

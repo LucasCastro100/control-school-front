@@ -57,9 +57,17 @@ export default function RoomsPage({
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
-    setSchool(getSchool(id) ?? null)
-    setCls(getClass(classId) ?? null)
-    setRooms(getRoomsByClass(classId))
+    async function load() {
+      const [schoolData, classData, roomsData] = await Promise.all([
+        getSchool(id),
+        getClass(classId),
+        getRoomsByClass(classId),
+      ])
+      setSchool(schoolData ?? null)
+      setCls(classData ?? null)
+      setRooms(roomsData)
+    }
+    load()
   }, [id, classId])
 
   useEffect(() => {
@@ -77,8 +85,8 @@ export default function RoomsPage({
     )
   }, [cls?.name])
 
-  function refresh() {
-    setRooms(getRoomsByClass(classId))
+  async function refresh() {
+    setRooms(await getRoomsByClass(classId))
     router.refresh()
   }
 
@@ -96,28 +104,26 @@ export default function RoomsPage({
     setOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      if (editingRoom) {
-        updateRoom(editingRoom.id, { name: name.trim() })
-      } else {
-        createRoom({ classId, name: name.trim() })
-      }
-      handleOpenChange(false)
-      setSaving(false)
-      refresh()
-    }, 0)
+    if (editingRoom) {
+      await updateRoom(editingRoom.id, { name: name.trim() })
+    } else {
+      await createRoom({ classId, name: name.trim() })
+    }
+    handleOpenChange(false)
+    setSaving(false)
+    refresh()
   }
 
   function handleDelete(roomId: string, label: string) {
     setDeleteTarget({ id: roomId, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteRoom(deleteTarget.id)
+    await deleteRoom(deleteTarget.id)
     setDeleteTarget(null)
     refresh()
   }

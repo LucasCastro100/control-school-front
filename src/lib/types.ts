@@ -6,7 +6,6 @@ export interface School {
   state: string
   city: string
   color?: string
-  orientadorId?: string
   email?: string
   password?: string
   scheduleType?: "semanal" | "quinzenal"
@@ -14,22 +13,20 @@ export interface School {
   createdAt: string
 }
 
-export interface Orientador {
+export interface User {
   id: string
   name: string
   email: string
   password?: string
-  region: string
-  state: string
-  city: string
+  role: "admin" | "orientador" | "professor"
   createdAt: string
 }
 
 export interface AuthUser {
   email: string
   name: string
-  role: "admin" | "orientador" | "escola"
-  orientadorId?: string
+  role: "admin" | "orientador" | "professor" | "escola"
+  userId?: string
   schoolId?: string
 }
 

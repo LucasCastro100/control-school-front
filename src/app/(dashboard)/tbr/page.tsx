@@ -45,9 +45,10 @@ export default function TbrPage() {
   const [name, setName] = useState("")
   const { setHeader } = usePageHeader()
 
-  function refresh() {
-    setCategories(getTbrCategories())
-    const teams = getAllTbrTeams()
+  async function refresh() {
+    const cats = await getTbrCategories()
+    setCategories(cats)
+    const teams = await getAllTbrTeams()
     const counts: Record<string, number> = {}
     for (const team of teams) {
       counts[team.categoryId] = (counts[team.categoryId] ?? 0) + 1
@@ -56,7 +57,10 @@ export default function TbrPage() {
   }
 
   useEffect(() => {
-    refresh()
+    async function load() {
+      await refresh()
+    }
+    load()
   }, [])
 
   useEffect(() => {
@@ -88,30 +92,28 @@ export default function TbrPage() {
     setOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      if (editingCategory) {
-        updateTbrCategory(editingCategory.id, { name: name.trim() })
-      } else {
-        createTbrCategory({ name: name.trim() })
-      }
-      handleOpenChange(false)
-      setSaving(false)
-      refresh()
-    }, 0)
+    if (editingCategory) {
+      await updateTbrCategory(editingCategory.id, { name: name.trim() })
+    } else {
+      await createTbrCategory({ name: name.trim() })
+    }
+    handleOpenChange(false)
+    setSaving(false)
+    await refresh()
   }
 
   function handleDelete(id: string, label: string) {
     setDeleteTarget({ id, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteTbrCategory(deleteTarget.id)
+    await deleteTbrCategory(deleteTarget.id)
     setDeleteTarget(null)
-    refresh()
+    await refresh()
   }
 
   return (

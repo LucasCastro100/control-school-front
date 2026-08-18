@@ -30,7 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
-import type { School, Orientador, TbrCategory } from "@/lib/types"
+import type { School, User, Class, TbrCategory } from "@/lib/types"
 import {
   getSchools,
   getSchoolsByYear,
@@ -42,10 +42,14 @@ import {
   getClasses,
   getRoomsByClass,
   getStudentsByRoom,
-  getOrientadores,
+  getUsersByRole,
   getTbrCategories,
   getTbrTeamsBySchool,
   replaceTbrTeamsForSchool,
+  getSchoolsByUser,
+  getUsersBySchool,
+  replaceUserSchools,
+  getAuthUser,
 } from "@/lib/db"
 import { REGIONS } from "@/lib/brazil-data"
 import { fetchStatesByRegion, fetchCitiesByState } from "@/lib/ibge-api"
@@ -54,6 +58,9 @@ const PAGE_SIZES = [10, 20, 50, 100]
 
 export default function SchoolsPage() {
   const router = useRouter()
+  const authUser = getAuthUser()
+  const isOrientador = authUser?.role === "orientador"
+  const myOrientadorId = authUser?.userId
   const [schools, setSchools] = useState<School[]>([])
   const [open, setOpen] = useState(false)
   const [editingSchool, setEditingSchool] = useState<School | null>(null)
@@ -69,7 +76,7 @@ export default function SchoolsPage() {
   const [schoolEmail, setSchoolEmail] = useState("")
   const [schoolPassword, setSchoolPassword] = useState("")
   const [orientadorId, setOrientadorId] = useState("")
-  const [orientadores, setOrientadores] = useState<Orientador[]>([])
+  const [orientadores, setOrientadores] = useState<User[]>([])
   const [tbrCategories, setTbrCategories] = useState<TbrCategory[]>([])
   const [teams, setTeams] = useState<{ id: string; categoryId: string; name: string }[]>([])
   const [active, setActive] = useState(true)
@@ -88,30 +95,62 @@ export default function SchoolsPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [schoolStats, setSchoolStats] = useState<Record<string, { classes: number; students: number; teams: number }>>({})
+  const [schoolOrientadorMap, setSchoolOrientadorMap] = useState<Record<string, string>>({})
+  const [schoolOrientadorIdMap, setSchoolOrientadorIdMap] = useState<Record<string, string>>({})
+  const [schoolYears, setSchoolYears] = useState<string[]>([])
 
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
-    const allSchools = getSchools()
-    setSchools(allSchools)
-    setOrientadores(getOrientadores())
-    setTbrCategories(getTbrCategories())
+    async function load() {
+      const orientadoresList = await getUsersByRole("orientador")
+      setOrientadores(orientadoresList)
+      setTbrCategories(await getTbrCategories())
 
-    const stats: Record<string, { classes: number; students: number; teams: number }> = {}
-    for (const school of allSchools) {
-      const classes = getClassesBySchool(school.id)
-      let students = 0
-      for (const cls of classes) {
-        const rooms = getRoomsByClass(cls.id)
-        for (const room of rooms) {
-          students += getStudentsByRoom(room.id).length
+      const classesData = await getClasses()
+      setAllClasses(classesData)
+      setSchoolYears(await getSchoolYears())
+
+      let allSchools = await getSchools()
+      if (isOrientador && myOrientadorId) {
+        const mySchoolIds = await getSchoolsByUser(myOrientadorId)
+        allSchools = allSchools.filter((s) => mySchoolIds.includes(s.id))
+      }
+      setSchools(allSchools)
+
+      const oMap: Record<string, string> = {}
+      const oIdMap: Record<string, string> = {}
+      for (const school of allSchools) {
+        const userIds = await getUsersBySchool(school.id)
+        for (const userId of userIds) {
+          const orientador = orientadoresList.find((o) => o.id === userId)
+          if (orientador) {
+            oMap[school.id] = orientador.name
+            oIdMap[school.id] = orientador.id
+            break
+          }
         }
       }
-      const teamsCount = getTbrTeamsBySchool(school.id).length
-      stats[school.id] = { classes: classes.length, students, teams: teamsCount }
+      setSchoolOrientadorMap(oMap)
+      setSchoolOrientadorIdMap(oIdMap)
+
+      const stats: Record<string, { classes: number; students: number; teams: number }> = {}
+      for (const school of allSchools) {
+        const classes = await getClassesBySchool(school.id)
+        let students = 0
+        for (const cls of classes) {
+          const rooms = await getRoomsByClass(cls.id)
+          for (const room of rooms) {
+            students += (await getStudentsByRoom(room.id)).length
+          }
+        }
+        const teamsCount = (await getTbrTeamsBySchool(school.id)).length
+        stats[school.id] = { classes: classes.length, students, teams: teamsCount }
+      }
+      setSchoolStats(stats)
     }
-    setSchoolStats(stats)
-  }, [filterYear])
+    load()
+  }, [filterYear, isOrientador, myOrientadorId])
 
   useEffect(() => {
     setHeader(
@@ -119,7 +158,7 @@ export default function SchoolsPage() {
         <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 ring-1 ring-primary/20">
           <SchoolIcon className="size-4 text-primary" />
         </div>
-        <h1 className="text-lg font-medium">Escolas</h1>
+        <h1 className="text-lg font-medium">{isOrientador ? "Minhas Escolas" : "Escolas"}</h1>
       </div>,
       <Button size="sm" onClick={() => setOpen(true)}>
         <Plus className="size-4 mr-2" />
@@ -128,14 +167,16 @@ export default function SchoolsPage() {
     )
   }, [])
 
+  const [allClasses, setAllClasses] = useState<Class[]>([])
+
   const schoolsByAcademicYear = filterYear
-    ? new Set(getClasses().filter((c) => c.year === filterYear).map((c) => c.schoolId))
+    ? new Set(allClasses.filter((c) => c.year === filterYear).map((c) => c.schoolId))
     : null
 
   const filteredSchools = schools
     .filter((s) => !schoolsByAcademicYear || schoolsByAcademicYear.has(s.id))
     .filter((s) => !filterState || s.state === filterState)
-    .filter((s) => !filterOrientadorId || s.orientadorId === filterOrientadorId)
+    .filter((s) => !filterOrientadorId || schoolOrientadorIdMap[s.id] === filterOrientadorId)
     .filter((s) => filterActive === "all" || (filterActive === "active" ? s.active !== false : s.active === false))
 
   const totalPages = Math.ceil(filteredSchools.length / pageSize)
@@ -148,21 +189,44 @@ export default function SchoolsPage() {
     setPage(1)
   }, [filterYear, filterState, filterOrientadorId, filterActive, pageSize])
 
-  function refresh() {
-    const allSchools = getSchools()
+  async function refresh() {
+    let allSchools = await getSchools()
+    if (isOrientador && myOrientadorId) {
+      const mySchoolIds = await getSchoolsByUser(myOrientadorId)
+      allSchools = allSchools.filter((s) => mySchoolIds.includes(s.id))
+    }
     setSchools(allSchools)
-    setSchoolStats((prev) => {
-      const stats = { ...prev }
-      for (const school of allSchools) {
-        stats[school.id] = {
-          ...stats[school.id],
-          classes: stats[school.id]?.classes ?? 0,
-          students: stats[school.id]?.students ?? 0,
-          teams: getTbrTeamsBySchool(school.id).length,
+
+    const oMap: Record<string, string> = {}
+    const oIdMap: Record<string, string> = {}
+    for (const school of allSchools) {
+      const userIds = await getUsersBySchool(school.id)
+      for (const userId of userIds) {
+        const orientador = orientadores.find((o) => o.id === userId)
+        if (orientador) {
+          oMap[school.id] = orientador.name
+          oIdMap[school.id] = orientador.id
+          break
         }
       }
-      return stats
-    })
+    }
+    setSchoolOrientadorMap(oMap)
+    setSchoolOrientadorIdMap(oIdMap)
+
+    const newStats: Record<string, { classes: number; students: number; teams: number }> = {}
+    for (const school of allSchools) {
+      const classes = await getClassesBySchool(school.id)
+      let students = 0
+      for (const cls of classes) {
+        const rooms = await getRoomsByClass(cls.id)
+        for (const room of rooms) {
+          students += (await getStudentsByRoom(room.id)).length
+        }
+      }
+      const teamsCount = (await getTbrTeamsBySchool(school.id)).length
+      newStats[school.id] = { classes: classes.length, students, teams: teamsCount }
+    }
+    setSchoolStats(newStats)
     router.refresh()
   }
 
@@ -179,7 +243,7 @@ export default function SchoolsPage() {
       setScheduleType("semanal")
       setSchoolEmail("")
       setSchoolPassword("")
-      setOrientadorId("")
+      setOrientadorId(isOrientador && myOrientadorId ? myOrientadorId : "")
       setActive(true)
       setStateOptions([])
       setCityOptions([])
@@ -246,10 +310,13 @@ export default function SchoolsPage() {
     setScheduleType(school.scheduleType ?? "semanal")
     setSchoolEmail(school.email ?? "")
     setSchoolPassword(school.password ?? "")
-    setOrientadorId(school.orientadorId ?? "")
+    const userIds = await getUsersBySchool(school.id)
+    const orientadorUserId = userIds.find((uid) => orientadores.some((o) => o.id === uid)) ?? ""
+    setOrientadorId(orientadorUserId)
     setActive(school.active !== false)
+    const tbrTeams = await getTbrTeamsBySchool(school.id)
     setTeams(
-      getTbrTeamsBySchool(school.id).map((t) => ({
+      tbrTeams.map((t) => ({
         id: t.id,
         categoryId: t.categoryId,
         name: t.name,
@@ -285,62 +352,62 @@ export default function SchoolsPage() {
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      let schoolId: string
-      if (editingSchool) {
-        updateSchool(editingSchool.id, {
-          name: name.trim(),
-          address: address.trim(),
-          region,
-          state,
-          city,
-          color: color || undefined,
-          orientadorId: orientadorId || undefined,
-          scheduleType,
-          email: schoolEmail.trim() || undefined,
-          password: schoolPassword.trim() || "mudar123",
-          active,
-        })
-        schoolId = editingSchool.id
-      } else {
-        const created = createSchool({
-          name: name.trim(),
-          address: address.trim(),
-          region,
-          state,
-          city,
-          color: color || undefined,
-          orientadorId: orientadorId || undefined,
-          scheduleType,
-          email: schoolEmail.trim() || undefined,
-          password: schoolPassword.trim() || "mudar123",
-          active,
-        })
-        schoolId = created.id
-      }
-      replaceTbrTeamsForSchool(
-        schoolId,
-        teams.map((t) => ({ categoryId: t.categoryId, name: t.name }))
-      )
-      handleOpenChange(false)
-      setSaving(false)
-      refresh()
-      toast.success(editingSchool ? "Escola editada com sucesso!" : "Escola criada com sucesso!")
-    }, 0)
+    const finalOrientadorId = isOrientador && myOrientadorId ? myOrientadorId : (orientadorId || undefined)
+    let schoolId: string
+    if (editingSchool) {
+      await updateSchool(editingSchool.id, {
+        name: name.trim(),
+        address: address.trim(),
+        region,
+        state,
+        city,
+        color: color || undefined,
+        scheduleType,
+        email: schoolEmail.trim() || undefined,
+        password: schoolPassword.trim() || "mudar123",
+        active,
+      })
+      schoolId = editingSchool.id
+    } else {
+      const created = await createSchool({
+        name: name.trim(),
+        address: address.trim(),
+        region,
+        state,
+        city,
+        color: color || undefined,
+        scheduleType,
+        email: schoolEmail.trim() || undefined,
+        password: schoolPassword.trim() || "mudar123",
+        active,
+      })
+      schoolId = created.id
+    }
+    if (finalOrientadorId) {
+      await replaceUserSchools(finalOrientadorId, [schoolId])
+    }
+    await replaceTbrTeamsForSchool(
+      schoolId,
+      teams.map((t) => ({ categoryId: t.categoryId, name: t.name }))
+    )
+    handleOpenChange(false)
+    setSaving(false)
+    await refresh()
+    toast.success(editingSchool ? "Escola editada com sucesso!" : "Escola criada com sucesso!")
   }
 
   function handleDelete(id: string, label: string) {
     setDeleteTarget({ id, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteSchool(deleteTarget.id)
+    await deleteSchool(deleteTarget.id)
     setDeleteTarget(null)
-    refresh()
+    await refresh()
     toast.success("Escola excluída com sucesso!")
   }
 
@@ -386,9 +453,9 @@ export default function SchoolsPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="schoolPassword">Senha de acesso</Label>
+                <Label htmlFor="password">Senha de acesso</Label>
                 <Input
-                  id="schoolPassword"
+                  id="password"
                   value={schoolPassword}
                   onChange={(e) => setSchoolPassword(e.target.value)}
                   placeholder="Senha (padrão: mudar123)"
@@ -510,20 +577,22 @@ export default function SchoolsPage() {
                 />
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>Orientador</Label>
-              <SearchableSelect
-                options={[
-                  { value: "", label: "Nenhum orientador" },
-                  ...orientadores.map((o) => ({ value: o.id, label: o.name })),
-                ]}
-                value={orientadorId}
-                onChange={setOrientadorId}
-                placeholder="Selecione um orientador"
-                searchPlaceholder="Buscar orientador..."
-                emptyText="Nenhum orientador encontrado."
-              />
-            </div>
+            {!isOrientador && (
+              <div className="flex flex-col gap-2">
+                <Label>Orientador</Label>
+                <SearchableSelect
+                  options={[
+                    { value: "", label: "Nenhum orientador" },
+                    ...orientadores.map((o) => ({ value: o.id, label: o.name })),
+                  ]}
+                  value={orientadorId}
+                  onChange={setOrientadorId}
+                  placeholder="Selecione um orientador"
+                  searchPlaceholder="Buscar orientador..."
+                  emptyText="Nenhum orientador encontrado."
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <Label>Equipes TBR</Label>
               {tbrCategories.length === 0 ? (
@@ -593,7 +662,7 @@ export default function SchoolsPage() {
           <p className="text-sm text-muted-foreground">
             Tem certeza que deseja excluir <strong>{deleteTarget?.label}</strong>?
             {deleteTarget && (() => {
-              const count = getClassesBySchool(deleteTarget.id).length
+              const count = schoolStats[deleteTarget.id]?.classes ?? 0
               return count > 0 ? (
                 <> Esta ação irá remover também {count} turma{count > 1 ? "s" : ""}, salas, alunos e horários vinculados.</>
               ) : null
@@ -612,7 +681,7 @@ export default function SchoolsPage() {
           <SearchableSelect
             options={[
               { value: "", label: "Todos os anos" },
-              ...getSchoolYears().map((y) => ({ value: y, label: y })),
+              ...schoolYears.map((y) => ({ value: y, label: y })),
             ]}
             value={filterYear}
             onChange={setFilterYear}
@@ -744,7 +813,7 @@ export default function SchoolsPage() {
                       <TableCell>{school.state || "-"}</TableCell>
                       <TableCell>{school.city || "-"}</TableCell>
                       <TableCell>
-                        {orientadores.find((o) => o.id === school.orientadorId)?.name || "-"}
+                        {schoolOrientadorMap[school.id] || "-"}
                       </TableCell>
                       <TableCell className="text-center">
                         {schoolStats[school.id]?.classes ?? 0}

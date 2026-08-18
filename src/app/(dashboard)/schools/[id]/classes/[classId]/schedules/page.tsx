@@ -79,32 +79,38 @@ export default function SchedulesPage({
   const [fortnight, setFortnight] = useState("1")
 
   useEffect(() => {
-    const schoolData = getSchool(id)
-    const classData = getClass(classId)
-    const roomList = getRoomsByClass(classId)
-    setSchool(schoolData ?? null)
-    setCls(classData ?? null)
-    setRooms(roomList)
-    if (roomList.length > 0 && !selectedRoom) {
-      setSelectedRoom("all")
+    async function load() {
+      const schoolData = await getSchool(id)
+      const classData = await getClass(classId)
+      const roomList = await getRoomsByClass(classId)
+      setSchool(schoolData ?? null)
+      setCls(classData ?? null)
+      setRooms(roomList)
+      if (roomList.length > 0 && !selectedRoom) {
+        setSelectedRoom("all")
+      }
     }
+    load()
   }, [id, classId])
 
   useEffect(() => {
-    if (selectedRoom === "all") {
-      setSchedules(getSchedulesByClass(classId))
-    } else if (selectedRoom) {
-      setSchedules(getSchedulesByRoom(selectedRoom))
-    } else {
-      setSchedules([])
+    async function load() {
+      if (selectedRoom === "all") {
+        setSchedules(await getSchedulesByClass(classId))
+      } else if (selectedRoom) {
+        setSchedules(await getSchedulesByRoom(selectedRoom))
+      } else {
+        setSchedules([])
+      }
     }
+    load()
   }, [selectedRoom, classId])
 
-  function refresh() {
+  async function refresh() {
     if (selectedRoom === "all") {
-      setSchedules(getSchedulesByClass(classId))
+      setSchedules(await getSchedulesByClass(classId))
     } else if (selectedRoom) {
-      setSchedules(getSchedulesByRoom(selectedRoom))
+      setSchedules(await getSchedulesByRoom(selectedRoom))
     }
     router.refresh()
   }
@@ -113,11 +119,11 @@ export default function SchedulesPage({
     setSelectedRoom(value)
   }
 
-  function confirmDeleteSchedule() {
+  async function confirmDeleteSchedule() {
     if (!deleteTarget) return
-    deleteSchedule(deleteTarget.id)
+    await deleteSchedule(deleteTarget.id)
     setDeleteTarget(null)
-    refresh()
+    await refresh()
   }
 
   function handleOpenChange(open: boolean) {
@@ -148,11 +154,11 @@ export default function SchedulesPage({
     setOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!startTime || !endTime || !subject.trim() || !teacher.trim() || !formRoom)
       return
     setSaving(true)
-    setTimeout(() => {
+    setTimeout(async () => {
       const fortnightValue: 0 | 1 | 2 =
         school?.scheduleType === "quinzenal"
           ? fortnight === "2" ? 2 : 1
@@ -168,13 +174,13 @@ export default function SchedulesPage({
         fortnight: fortnightValue,
       }
       if (editingSchedule) {
-        updateSchedule(editingSchedule.id, data)
+        await updateSchedule(editingSchedule.id, data)
       } else {
-        createSchedule(data)
+        await createSchedule(data)
       }
       handleOpenChange(false)
       setSaving(false)
-      refresh()
+      await refresh()
     }, 0)
   }
 

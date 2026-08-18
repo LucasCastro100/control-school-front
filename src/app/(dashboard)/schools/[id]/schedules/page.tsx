@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
-import type { School, DayOfWeek, Orientador, OrientadorSchedule } from "@/lib/types"
+import type { School, DayOfWeek, User, OrientadorSchedule } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
   getSchool,
@@ -31,7 +31,7 @@ import {
   getRooms,
   getSchedulesByClass,
   getAcademicYears,
-  getOrientadores,
+  getUsersByRole,
   getOrientadorSchedulesBySchool,
   createOrientadorSchedule,
   updateOrientadorSchedule,
@@ -84,7 +84,7 @@ function GeneralSchedulesContent({
   >([])
   const [loading, setLoading] = useState(true)
   const [filterYear, setFilterYear] = useState(searchParams.get("year") || String(new Date().getFullYear()))
-  const [orientadores, setOrientadores] = useState<Orientador[]>([])
+  const [orientadores, setOrientadores] = useState<User[]>([])
   const [orientadorSchedules, setOrientadorSchedules] = useState<OrientadorSchedule[]>([])
   const [agendaOpen, setAgendaOpen] = useState(false)
   const [editingAgenda, setEditingAgenda] = useState<OrientadorSchedule | null>(null)
@@ -95,56 +95,69 @@ function GeneralSchedulesContent({
   const [agendaEnd, setAgendaEnd] = useState("")
   const [agendaActivity, setAgendaActivity] = useState("")
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
+  const [academicYears, setAcademicYears] = useState<string[]>([])
   const { setHeader } = usePageHeader()
 
-  const academicYears = getAcademicYears()
+  useEffect(() => {
+    getAcademicYears().then((years) => setAcademicYears(years))
+  }, [])
 
   useEffect(() => {
-    const schoolData = getSchool(id)
-    setSchool(schoolData ?? null)
-  }, [id])
+    let cancelled = false
+    async function load() {
+      const schoolData = await getSchool(id)
+      if (cancelled) return
+      setSchool(schoolData ?? null)
 
-  useEffect(() => {
-    const schoolData = getSchool(id)
-    setSchool(schoolData ?? null)
+      if (schoolData) {
+        const [allRooms, classList] = await Promise.all([
+          getRooms(),
+          getClassesBySchoolAndYear(id, filterYear),
+        ])
+        if (cancelled) return
+        const roomMap = new Map(allRooms.map((r) => [r.id, r]))
 
-    if (schoolData) {
-      const allRooms = getRooms()
-      const roomMap = new Map(allRooms.map((r) => [r.id, r]))
-      const classList = getClassesBySchoolAndYear(id, filterYear)
+        const entries: ScheduleEntry[] = []
 
-      const entries: ScheduleEntry[] = []
-
-      for (const cls of classList) {
-        const schedules = getSchedulesByClass(cls.id)
-        for (const schedule of schedules) {
-          entries.push({
-            id: schedule.id,
-            className: cls.name,
-            roomName: roomMap.get(schedule.roomId)?.name ?? schedule.roomId,
-            subject: schedule.subject,
-            startTime: schedule.startTime,
-            endTime: schedule.endTime,
-            teacher: schedule.teacher,
-            dayOfWeek: schedule.dayOfWeek,
-            fortnight: schedule.fortnight,
-          })
+        for (const cls of classList) {
+          const schedules = await getSchedulesByClass(cls.id)
+          if (cancelled) return
+          for (const schedule of schedules) {
+            entries.push({
+              id: schedule.id,
+              className: cls.name,
+              roomName: roomMap.get(schedule.roomId)?.name ?? schedule.roomId,
+              subject: schedule.subject,
+              startTime: schedule.startTime,
+              endTime: schedule.endTime,
+              teacher: schedule.teacher,
+              dayOfWeek: schedule.dayOfWeek,
+              fortnight: schedule.fortnight,
+            })
+          }
         }
+
+        const grouped = DAYS_OF_WEEK.map((_, idx) => ({
+          day: DAY_MAP[idx],
+          schedules: entries
+            .filter((e) => e.dayOfWeek === idx)
+            .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+        }))
+
+        setGroupedByDay(grouped)
       }
 
-      const grouped = DAYS_OF_WEEK.map((_, idx) => ({
-        day: DAY_MAP[idx],
-        schedules: entries
-          .filter((e) => e.dayOfWeek === idx)
-          .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-      }))
-
-      setGroupedByDay(grouped)
+      const [orientadoresData, orientadorSchedulesData] = await Promise.all([
+        getUsersByRole("orientador"),
+        getOrientadorSchedulesBySchool(id, filterYear),
+      ])
+      if (cancelled) return
+      setOrientadores(orientadoresData)
+      setOrientadorSchedules(orientadorSchedulesData)
+      setLoading(false)
     }
-
-    setOrientadores(getOrientadores())
-    setOrientadorSchedules(getOrientadorSchedulesBySchool(id, filterYear))
-    setLoading(false)
+    load()
+    return () => { cancelled = true }
   }, [id, filterYear])
 
   useEffect(() => {
@@ -189,35 +202,35 @@ function GeneralSchedulesContent({
     setAgendaOpen(true)
   }
 
-  function handleSaveAgenda() {
+  async function handleSaveAgenda() {
     if (!agendaOrientador || !agendaStart || !agendaEnd || !agendaActivity.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      const data = {
-        schoolId: id,
-        orientadorId: agendaOrientador,
-        dayOfWeek: Number(agendaDay),
-        startTime: agendaStart,
-        endTime: agendaEnd,
-        activity: agendaActivity.trim(),
-        year: filterYear,
-      }
-      if (editingAgenda) {
-        updateOrientadorSchedule(editingAgenda.id, data)
-      } else {
-        createOrientadorSchedule(data)
-      }
-      setAgendaOpen(false)
-      setSaving(false)
-      setOrientadorSchedules(getOrientadorSchedulesBySchool(id, filterYear))
-    }, 0)
+    const data = {
+      schoolId: id,
+      orientadorId: agendaOrientador,
+      dayOfWeek: Number(agendaDay),
+      startTime: agendaStart,
+      endTime: agendaEnd,
+      activity: agendaActivity.trim(),
+      year: filterYear,
+    }
+    if (editingAgenda) {
+      await updateOrientadorSchedule(editingAgenda.id, data)
+    } else {
+      await createOrientadorSchedule(data)
+    }
+    setAgendaOpen(false)
+    setSaving(false)
+    const updated = await getOrientadorSchedulesBySchool(id, filterYear)
+    setOrientadorSchedules(updated)
   }
 
-  function confirmDeleteAgenda() {
+  async function confirmDeleteAgenda() {
     if (!deleteTarget) return
-    deleteOrientadorSchedule(deleteTarget.id)
+    await deleteOrientadorSchedule(deleteTarget.id)
     setDeleteTarget(null)
-    setOrientadorSchedules(getOrientadorSchedulesBySchool(id, filterYear))
+    const updated = await getOrientadorSchedulesBySchool(id, filterYear)
+    setOrientadorSchedules(updated)
   }
 
   if (loading) {

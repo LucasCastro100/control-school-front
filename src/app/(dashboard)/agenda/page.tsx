@@ -24,10 +24,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
-import type { AuthUser, Orientador, AgendaItem } from "@/lib/types"
+import type { AuthUser, User, AgendaItem } from "@/lib/types"
 import {
   getAuthUser,
-  getOrientadores,
+  getUsersByRole,
   getAgendaItems,
   createAgendaItem,
   updateAgendaItem,
@@ -79,7 +79,7 @@ function buildGrid(year: number, month: number): Date[] {
 
 export default function AgendaPage() {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [orientadores, setOrientadores] = useState<Orientador[]>([])
+  const [orientadores, setOrientadores] = useState<User[]>([])
   const [items, setItems] = useState<AgendaItem[]>([])
   const [current, setCurrent] = useState(() => {
     const now = new Date()
@@ -100,13 +100,17 @@ export default function AgendaPage() {
 
   useEffect(() => {
     setUser(getAuthUser())
-    setOrientadores(getOrientadores())
-    setItems(getAgendaItems())
+    async function load() {
+      const [o, i] = await Promise.all([getUsersByRole("orientador"), getAgendaItems()])
+      setOrientadores(o)
+      setItems(i)
+    }
+    load()
   }, [])
 
   useEffect(() => {
-    if (user?.role === "orientador" && user.orientadorId) {
-      setFilterOrientador(user.orientadorId)
+    if (user?.role === "orientador" && user.userId) {
+      setFilterOrientador(user.userId)
     }
   }, [user])
 
@@ -123,7 +127,7 @@ export default function AgendaPage() {
         Nova Atividade
       </Button>
     )
-  }, [isAdmin, user?.orientadorId])
+  }, [isAdmin, user?.userId])
 
   const grid = buildGrid(current.year, current.month)
 
@@ -156,7 +160,7 @@ export default function AgendaPage() {
   function openCreate(day: Date) {
     setEditing(null)
     setFormDate(dateKey(day))
-    setFormOrientador(isAdmin ? "" : (user?.orientadorId ?? ""))
+    setFormOrientador(isAdmin ? "" : (user?.userId ?? ""))
     setFormStart("")
     setFormEnd("")
     setFormActivity("")
@@ -173,37 +177,37 @@ export default function AgendaPage() {
     setOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!formDate || !formOrientador || !formStart || !formEnd || !formActivity.trim()) {
       return
     }
     setSaving(true)
-    setTimeout(() => {
-      const data = {
-        orientadorId: formOrientador,
-        date: formDate,
-        startTime: formStart,
-        endTime: formEnd,
-        activity: formActivity.trim(),
-      }
-      if (editing) {
-        updateAgendaItem(editing.id, data)
-      } else {
-        createAgendaItem(data)
-      }
-      setOpen(false)
-      setEditing(null)
-      setSaving(false)
-      setItems(getAgendaItems())
-    }, 0)
-  }
-
-  function confirmDelete() {
-    if (!editing) return
-    deleteAgendaItem(editing.id)
+    const data = {
+      orientadorId: formOrientador,
+      date: formDate,
+      startTime: formStart,
+      endTime: formEnd,
+      activity: formActivity.trim(),
+    }
+    if (editing) {
+      await updateAgendaItem(editing.id, data)
+    } else {
+      await createAgendaItem(data)
+    }
+    const updated = await getAgendaItems()
+    setItems(updated)
     setOpen(false)
     setEditing(null)
-    setItems(getAgendaItems())
+    setSaving(false)
+  }
+
+  async function confirmDelete() {
+    if (!editing) return
+    await deleteAgendaItem(editing.id)
+    const updated = await getAgendaItems()
+    setItems(updated)
+    setOpen(false)
+    setEditing(null)
   }
 
   function changeMonth(delta: number) {
@@ -253,13 +257,13 @@ export default function AgendaPage() {
               />
             </div>
           )}
-          {!isAdmin && user?.orientadorId && (
+          {!isAdmin && user?.userId && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <span
                 className="size-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: orientadorColor(user.orientadorId) }}
+                style={{ backgroundColor: orientadorColor(user.userId) }}
               />
-              {orientadorName(user.orientadorId)}
+              {orientadorName(user.userId)}
             </span>
           )}
         </div>
@@ -361,7 +365,7 @@ export default function AgendaPage() {
                 />
               ) : (
                 <Input
-                  value={orientadorName(user?.orientadorId ?? "")}
+                  value={orientadorName(user?.userId ?? "")}
                   readOnly
                   className="bg-muted"
                 />

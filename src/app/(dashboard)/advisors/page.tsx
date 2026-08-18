@@ -26,48 +26,40 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { SearchableSelect } from "@/components/ui/searchable-select"
-import type { Orientador } from "@/lib/types"
+import type { User } from "@/lib/types"
 import {
-  getOrientadores,
-  createOrientador,
-  updateOrientador,
-  deleteOrientador,
-  getSchools,
+  getUsersByRole,
+  createUser,
+  updateUser,
+  deleteUser,
 } from "@/lib/db"
-import { REGIONS } from "@/lib/brazil-data"
-import { fetchStatesByRegion, fetchCitiesByState } from "@/lib/ibge-api"
+import { supabase } from "@/lib/supabase"
 
 export default function OrientadoresPage() {
-  const [orientadores, setOrientadores] = useState<Orientador[]>([])
+  const [orientadores, setOrientadores] = useState<User[]>([])
   const [schoolCounts, setSchoolCounts] = useState<Record<string, number>>({})
   const [open, setOpen] = useState(false)
-  const [editingOrientador, setEditingOrientador] = useState<Orientador | null>(null)
+  const [editingOrientador, setEditingOrientador] = useState<User | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [region, setRegion] = useState("")
-  const [state, setState] = useState("")
-  const [city, setCity] = useState("")
-
-  const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([])
-  const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([])
-  const [loadingStates, setLoadingStates] = useState(false)
-  const [loadingCities, setLoadingCities] = useState(false)
 
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
-    setOrientadores(getOrientadores())
-    const counts: Record<string, number> = {}
-    for (const school of getSchools()) {
-      if (school.orientadorId) {
-        counts[school.orientadorId] = (counts[school.orientadorId] ?? 0) + 1
+    async function load() {
+      const orientadoresData = await getUsersByRole("orientador")
+      setOrientadores(orientadoresData)
+      const { data: links } = await supabase.from("user_schools").select("user_id")
+      const counts: Record<string, number> = {}
+      for (const link of links ?? []) {
+        counts[link.user_id] = (counts[link.user_id] ?? 0) + 1
       }
+      setSchoolCounts(counts)
     }
-    setSchoolCounts(counts)
+    load()
   }, [])
 
   useEffect(() => {
@@ -85,13 +77,13 @@ export default function OrientadoresPage() {
     )
   }, [])
 
-  function refresh() {
-    setOrientadores(getOrientadores())
+  async function refresh() {
+    const orientadoresData = await getUsersByRole("orientador")
+    setOrientadores(orientadoresData)
+    const { data: links } = await supabase.from("user_schools").select("user_id")
     const counts: Record<string, number> = {}
-    for (const school of getSchools()) {
-      if (school.orientadorId) {
-        counts[school.orientadorId] = (counts[school.orientadorId] ?? 0) + 1
-      }
+    for (const link of links ?? []) {
+      counts[link.user_id] = (counts[link.user_id] ?? 0) + 1
     }
     setSchoolCounts(counts)
   }
@@ -103,123 +95,48 @@ export default function OrientadoresPage() {
       setName("")
       setEmail("")
       setPassword("")
-      setRegion("")
-      setState("")
-      setCity("")
-      setStateOptions([])
-      setCityOptions([])
     }
   }
 
-  function handleRegionChange(value: string) {
-    setRegion(value)
-    setState("")
-    setCity("")
-    setCityOptions([])
-    if (!value) {
-      setStateOptions([])
-      return
-    }
-    setLoadingStates(true)
-    fetchStatesByRegion(value)
-      .then((data) =>
-        setStateOptions(
-          data.map((s) => ({ value: s.sigla, label: `${s.sigla} - ${s.nome}` }))
-        )
-      )
-      .catch(() => setStateOptions([]))
-      .finally(() => setLoadingStates(false))
-  }
-
-  function handleStateChange(value: string) {
-    setState(value)
-    setCity("")
-    if (!value) {
-      setCityOptions([])
-      return
-    }
-    setLoadingCities(true)
-    fetchCitiesByState(value)
-      .then((data) =>
-        setCityOptions(data.map((c) => ({ value: c.nome, label: c.nome })))
-      )
-      .catch(() => setCityOptions([]))
-      .finally(() => setLoadingCities(false))
-  }
-
-  async function handleEdit(orientador: Orientador) {
+  async function handleEdit(orientador: User) {
     setEditingOrientador(orientador)
     setName(orientador.name)
     setEmail(orientador.email)
     setPassword(orientador.password ?? "")
     setOpen(true)
-
-    setLoadingStates(true)
-    try {
-      const data = await fetchStatesByRegion(orientador.region)
-      const mapped = data.map((s) => ({
-        value: s.sigla,
-        label: `${s.sigla} - ${s.nome}`,
-      }))
-      setStateOptions(mapped)
-      setRegion(orientador.region)
-      setState(orientador.state)
-    } catch {
-      setStateOptions([])
-    } finally {
-      setLoadingStates(false)
-    }
-
-    setLoadingCities(true)
-    try {
-      const data = await fetchCitiesByState(orientador.state)
-      setCityOptions(data.map((c) => ({ value: c.nome, label: c.nome })))
-      setCity(orientador.city)
-    } catch {
-      setCityOptions([])
-    } finally {
-      setLoadingCities(false)
-    }
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
-    setTimeout(() => {
-      if (editingOrientador) {
-        updateOrientador(editingOrientador.id, {
-          name: name.trim(),
-          email: email.trim(),
-          password: password.trim() || "mudar123",
-          region,
-          state,
-          city,
-        })
-      } else {
-        createOrientador({
-          name: name.trim(),
-          email: email.trim(),
-          password: password.trim() || "mudar123",
-          region,
-          state,
-          city,
-        })
-      }
-      handleOpenChange(false)
-      setSaving(false)
-      refresh()
-    }, 0)
+    if (editingOrientador) {
+      await updateUser(editingOrientador.id, {
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim() || "mudar123",
+      })
+    } else {
+      await createUser({
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim() || "mudar123",
+        role: "orientador",
+      })
+    }
+    handleOpenChange(false)
+    setSaving(false)
+    await refresh()
   }
 
   function handleDelete(id: string, label: string) {
     setDeleteTarget({ id, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteOrientador(deleteTarget.id)
+    await deleteUser(deleteTarget.id)
     setDeleteTarget(null)
-    refresh()
+    await refresh()
   }
 
   return (
@@ -260,47 +177,8 @@ export default function OrientadoresPage() {
                 placeholder="Senha (padrão: mudar123)"
               />
               <p className="text-xs text-muted-foreground">
-                Usada pelo orientador para acessar a Agenda. Deixe em branco para usar &quot;mudar123&quot;.
+                Usada pelo orientador para acessar o sistema. Deixe em branco para usar &quot;mudar123&quot;.
               </p>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label>Região</Label>
-                <SearchableSelect
-                  options={REGIONS.map((r) => ({ value: r, label: r }))}
-                  value={region}
-                  onChange={handleRegionChange}
-                  placeholder="Região"
-                  searchPlaceholder="Buscar região..."
-                  emptyText="Nenhuma região encontrada."
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Estado</Label>
-                <SearchableSelect
-                  options={stateOptions}
-                  value={state}
-                  onChange={handleStateChange}
-                  placeholder="Estado"
-                  searchPlaceholder="Buscar estado..."
-                  emptyText="Nenhum estado encontrado."
-                  loading={loadingStates}
-                  disabled={!region}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>Município</Label>
-                <SearchableSelect
-                  options={cityOptions}
-                  value={city}
-                  onChange={setCity}
-                  placeholder="Município"
-                  searchPlaceholder="Buscar município..."
-                  emptyText="Nenhum município encontrado."
-                  loading={loadingCities}
-                  disabled={!state}
-                />
-              </div>
             </div>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <LoaderCircle className="size-4 animate-spin" />}
@@ -341,8 +219,6 @@ export default function OrientadoresPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Município</TableHead>
                   <TableHead className="text-center">Qtd Escolas</TableHead>
                   <TableHead className="w-px">Ações</TableHead>
                 </TableRow>
@@ -354,8 +230,6 @@ export default function OrientadoresPage() {
                       {orientador.name || "-"}
                     </TableCell>
                     <TableCell>{orientador.email || "-"}</TableCell>
-                    <TableCell>{orientador.state || "-"}</TableCell>
-                    <TableCell>{orientador.city || "-"}</TableCell>
                     <TableCell className="text-center">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${

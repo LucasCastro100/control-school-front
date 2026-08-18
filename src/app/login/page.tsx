@@ -30,7 +30,7 @@ export default function LoginPage() {
 
     await new Promise((r) => setTimeout(r, 300))
 
-    const user = login(email.trim(), password)
+    const user = await login(email.trim(), password)
     if (user) {
       if (user.role === "orientador") {
         router.push("/agenda")

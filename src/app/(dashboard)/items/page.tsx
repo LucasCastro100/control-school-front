@@ -71,24 +71,31 @@ function ItemsContent() {
   const [filterNap, setFilterNap] = useState("")
   const { setHeader } = usePageHeader()
 
-  const academicYears = getAcademicYears()
+  const [academicYears, setAcademicYears] = useState<string[]>([])
 
   useEffect(() => {
-    setItems(getAllItems())
-    setSchools(getSchools())
-    setGlobalNapItems(getAllNapItems())
-    const sId = searchParams.get("schoolId")
-    if (sId) setFilterSchoolId(sId)
-    const y = searchParams.get("year")
-    if (y) setFilterYear(y)
+    async function load() {
+      setAcademicYears(await getAcademicYears())
+      setItems(await getAllItems())
+      setSchools(await getSchools())
+      setGlobalNapItems(await getAllNapItems())
+      const sId = searchParams.get("schoolId")
+      if (sId) setFilterSchoolId(sId)
+      const y = searchParams.get("year")
+      if (y) setFilterYear(y)
+    }
+    load()
   }, [])
 
   useEffect(() => {
-    if (filterSchoolId) {
-      setAllNapItems(getNapItemsBySchoolAndYear(filterSchoolId, filterYear))
-    } else {
-      setAllNapItems([])
+    async function load() {
+      if (filterSchoolId) {
+        setAllNapItems(await getNapItemsBySchoolAndYear(filterSchoolId, filterYear))
+      } else {
+        setAllNapItems([])
+      }
     }
+    load()
   }, [filterSchoolId, filterYear])
 
   useEffect(() => {
@@ -130,18 +137,18 @@ function ItemsContent() {
     setOpen(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!itemName.trim() || !itemCategory) return
     setSaving(true)
-    setTimeout(() => {
+    setTimeout(async () => {
       if (editingItem) {
-        updateItem(editingItem.id, { name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
+        await updateItem(editingItem.id, { name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
       } else {
-        createItem({ name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
+        await createItem({ name: itemName.trim(), category: itemCategory as "tapete" | "tecnologia", naps: itemNaps })
       }
       handleOpenChange(false)
       setSaving(false)
-      setItems(getAllItems())
+      setItems(await getAllItems())
     }, 0)
   }
 
@@ -149,11 +156,11 @@ function ItemsContent() {
     setDeleteTarget({ id: itemId, label })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    deleteItem(deleteTarget.id)
+    await deleteItem(deleteTarget.id)
     setDeleteTarget(null)
-    setItems(getAllItems())
+    setItems(await getAllItems())
   }
 
   function toggleNap(nap: string) {

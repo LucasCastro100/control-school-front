@@ -45,9 +45,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!user) return
-    if (user.role === "orientador" && !pathname.startsWith("/agenda")) {
-      router.push("/agenda")
-    } else if (
+    if (
       user.role === "escola" &&
       user.schoolId &&
       !pathname.startsWith(`/schools/${user.schoolId}`)
