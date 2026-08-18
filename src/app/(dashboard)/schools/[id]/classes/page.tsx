@@ -223,7 +223,7 @@ export default function ClassesPage() {
 
   function handleSave(closeAfter: boolean) {
     if (!segmento || !name.trim()) return
-    const yearValue = editingClass ? editingClass.year : classYear || filterYear
+    const yearValue = editingClass ? editingClass.year : filterYear
     if (!yearValue) return
     setSaving(true)
     setTimeout(() => {
