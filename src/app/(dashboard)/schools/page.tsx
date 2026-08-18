@@ -41,7 +41,6 @@ import {
   getClassesBySchool,
   getClasses,
   getRoomsByClass,
-  getStudentsByRoom,
   getUsersByRole,
   getTbrCategories,
   getTbrTeamsBySchool,
@@ -143,7 +142,7 @@ export default function SchoolsPage() {
         for (const cls of classes) {
           const rooms = await getRoomsByClass(cls.id)
           for (const room of rooms) {
-            students += (await getStudentsByRoom(room.id)).length
+            students += room.studentCount ?? 0
           }
         }
         const teamsCount = (await getTbrTeamsBySchool(school.id)).length
@@ -222,7 +221,7 @@ export default function SchoolsPage() {
       for (const cls of classes) {
         const rooms = await getRoomsByClass(cls.id)
         for (const room of rooms) {
-          students += (await getStudentsByRoom(room.id)).length
+          students += room.studentCount ?? 0
         }
       }
       const teamsCount = (await getTbrTeamsBySchool(school.id)).length

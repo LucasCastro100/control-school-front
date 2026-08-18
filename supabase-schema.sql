@@ -51,15 +51,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   id TEXT PRIMARY KEY,
   class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Tabela: students
-CREATE TABLE IF NOT EXISTS students (
-  id TEXT PRIMARY KEY,
-  room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  registration_number TEXT NOT NULL,
+  student_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -151,7 +143,6 @@ ALTER TABLE user_schools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orientador_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE segment_configs ENABLE ROW LEVEL SECURITY;
@@ -167,7 +158,6 @@ CREATE POLICY "Allow all" ON user_schools FOR ALL USING (true) WITH CHECK (true)
 CREATE POLICY "Allow all" ON schools FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON classes FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON rooms FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON students FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON schedules FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON orientador_schedules FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON segment_configs FOR ALL USING (true) WITH CHECK (true);

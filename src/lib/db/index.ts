@@ -5,7 +5,6 @@ export { getUsers, getUsersByRole, getUser, createUser, updateUser, deleteUser, 
 export { getSchools, getSchoolsByYear, getSchoolYears, getAcademicYears, getSchool, createSchool, updateSchool, deleteSchool } from "./schools"
 export { getClasses, getClassesBySchool, getClass, getClassesBySchoolAndYear, createClass, updateClass, deleteClass } from "./classes"
 export { getRooms, getRoomsByClass, getRoom, createRoom, updateRoom, deleteRoom } from "./rooms"
-export { getStudents, getStudentsByRoom, createStudent, updateStudent, deleteStudent } from "./students"
 export { getSchedules, getSchedulesByClass, getSchedulesByRoom, createSchedule, updateSchedule, deleteSchedule } from "./schedules"
 export { getOrientadorSchedules, getOrientadorSchedulesBySchool, createOrientadorSchedule, updateOrientadorSchedule, deleteOrientadorSchedule, deleteOrientadorSchedulesBySchool } from "./orientador-schedules"
 export { getSegmentConfigs, getSegmentConfigsAll, getSegmentConfig, upsertSegmentConfig, deleteSegmentConfig, deleteSegmentConfigsBySchool } from "./segment-configs"

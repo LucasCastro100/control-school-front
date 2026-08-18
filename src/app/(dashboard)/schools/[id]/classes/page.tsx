@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
-import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle, Users } from "lucide-react"
+import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -30,7 +30,6 @@ import { usePageHeader } from "@/lib/page-header"
 import type { Class, School, Item, NapItem, Room } from "@/lib/types"
 import {
   getSchool,
-  getClassesBySchool,
   getClassesBySchoolAndYear,
   createClass,
   updateClass,
@@ -38,8 +37,6 @@ import {
   getRoomsByClass,
   createRoom,
   deleteRoom,
-  createStudent,
-  getStudentsByRoom,
   getAllItems,
   getNapItems,
   getNapItemsBySchoolAndYear,
@@ -109,11 +106,10 @@ export default function ClassesPage() {
   const [roomsTarget, setRoomsTarget] = useState<Class | null>(null)
   const [rooms, setRooms] = useState<Room[]>([])
   const [roomName, setRoomName] = useState("")
-  const [roomStudentCount, setRoomStudentCount] = useState("")
+  const [roomStudentCount, setRoomStudentCount] = useState(0)
   const [addingRoom, setAddingRoom] = useState(false)
   const [roomDeleteTarget, setRoomDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [academicYears, setAcademicYears] = useState<string[]>([])
-  const [roomStudentCounts, setRoomStudentCounts] = useState<Record<string, number>>({})
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
@@ -147,8 +143,7 @@ export default function ClassesPage() {
       let biggest = ""
       let biggestCount = 0
       for (const room of classRooms) {
-        const roomStudents = await getStudentsByRoom(room.id)
-        const count = roomStudents.length
+        const count = room.studentCount ?? 0
         students += count
         if (count > biggestCount) {
           biggestCount = count
@@ -277,40 +272,19 @@ export default function ClassesPage() {
     setRoomsTarget(cls)
     const classRooms = await getRoomsByClass(cls.id)
     setRooms(classRooms)
-    const counts: Record<string, number> = {}
-    for (const room of classRooms) {
-      const students = await getStudentsByRoom(room.id)
-      counts[room.id] = students.length
-    }
-    setRoomStudentCounts(counts)
     setRoomName("")
-    setRoomStudentCount("")
+    setRoomStudentCount(0)
     setRoomsDialog(true)
   }
 
   async function handleAddRoom(closeAfter: boolean) {
     if (!roomsTarget || !roomName.trim()) return
-    const count = parseInt(roomStudentCount) || 0
     setAddingRoom(true)
-    const room = await createRoom({ classId: roomsTarget.id, name: roomName.trim() })
-    const prefix = String(Date.now()).slice(-6)
-    for (let i = 1; i <= count; i++) {
-      await createStudent({
-        roomId: room.id,
-        name: `Aluno ${i}`,
-        registrationNumber: `${prefix}${String(i).padStart(2, "0")}`,
-      })
-    }
+    await createRoom({ classId: roomsTarget.id, name: roomName.trim(), studentCount: roomStudentCount })
     const classRooms = await getRoomsByClass(roomsTarget.id)
     setRooms(classRooms)
-    const counts: Record<string, number> = {}
-    for (const r of classRooms) {
-      const students = await getStudentsByRoom(r.id)
-      counts[r.id] = students.length
-    }
-    setRoomStudentCounts(counts)
     setRoomName("")
-    setRoomStudentCount("")
+    setRoomStudentCount(0)
     setAddingRoom(false)
     await refresh()
     if (closeAfter) {
@@ -325,12 +299,6 @@ export default function ClassesPage() {
     if (roomsTarget) {
       const classRooms = await getRoomsByClass(roomsTarget.id)
       setRooms(classRooms)
-      const counts: Record<string, number> = {}
-      for (const r of classRooms) {
-        const students = await getStudentsByRoom(r.id)
-        counts[r.id] = students.length
-      }
-      setRoomStudentCounts(counts)
     }
     await refresh()
   }
@@ -473,7 +441,7 @@ export default function ClassesPage() {
               if (filtered.length === 0) {
                 return (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhum item vinculado a {itemSegName}. Cadastre itens com este NAP em "Itens".
+                    Nenhum item vinculado a {itemSegName}. Cadastre itens com este NAP em &quot;Itens&quot;.
                   </p>
                 )
               }
@@ -524,7 +492,7 @@ export default function ClassesPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Tem certeza que deseja excluir a turma <strong>{deleteTarget?.label}</strong>?
-            Esta ação irá remover também salas, alunos e horários vinculados.
+            Esta ação irá remover também salas e horários vinculados.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
@@ -555,28 +523,17 @@ export default function ClassesPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium">{room.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {roomStudentCounts[room.id] ?? 0} alunos
+                        {room.studentCount ?? 0} alunos
                       </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {roomsTarget && (
-                        <Link
-                          href={`/schools/${id}/classes/${roomsTarget.id}/rooms/${room.id}/students`}
-                        >
-                          <Button variant="outline" size="icon" className="size-8">
-                            <Users className="size-3.5" />
-                          </Button>
-                        </Link>
-                      )}
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="size-8"
-                        onClick={() => setRoomDeleteTarget({ id: room.id, label: room.name })}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => setRoomDeleteTarget({ id: room.id, label: room.name })}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -591,8 +548,8 @@ export default function ClassesPage() {
               <Input
                 type="number"
                 min="0"
-                value={roomStudentCount}
-                onChange={(e) => setRoomStudentCount(e.target.value)}
+                value={roomStudentCount || ""}
+                onChange={(e) => setRoomStudentCount(Number(e.target.value))}
                 placeholder="Quantidade de alunos"
               />
               <div className="flex gap-2">
@@ -623,7 +580,7 @@ export default function ClassesPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Tem certeza que deseja excluir a sala <strong>{roomDeleteTarget?.label}</strong>?
-            Esta ação irá remover também alunos e horários vinculados.
+            Esta ação irá remover também os horários vinculados.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setRoomDeleteTarget(null)}>Cancelar</Button>

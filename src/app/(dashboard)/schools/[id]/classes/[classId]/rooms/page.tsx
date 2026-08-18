@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use } from "react"
-import { Plus, Pencil, Trash2, Users, DoorOpen, LoaderCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, DoorOpen, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -54,6 +54,7 @@ export default function RoomsPage({
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState("")
+  const [studentCount, setStudentCount] = useState(0)
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
@@ -95,12 +96,14 @@ export default function RoomsPage({
     if (!open) {
       setEditingRoom(null)
       setName("")
+      setStudentCount(0)
     }
   }
 
   function handleEdit(room: Room) {
     setEditingRoom(room)
     setName(room.name)
+    setStudentCount(room.studentCount)
     setOpen(true)
   }
 
@@ -108,9 +111,9 @@ export default function RoomsPage({
     if (!name.trim()) return
     setSaving(true)
     if (editingRoom) {
-      await updateRoom(editingRoom.id, { name: name.trim() })
+      await updateRoom(editingRoom.id, { name: name.trim(), studentCount })
     } else {
-      await createRoom({ classId, name: name.trim() })
+      await createRoom({ classId, name: name.trim(), studentCount })
     }
     handleOpenChange(false)
     setSaving(false)
@@ -165,6 +168,17 @@ export default function RoomsPage({
                 placeholder="Ex: 1A, 1B"
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="studentCount">Quantidade de Alunos</Label>
+              <Input
+                id="studentCount"
+                type="number"
+                min={0}
+                value={studentCount}
+                onChange={(e) => setStudentCount(Number(e.target.value))}
+                placeholder="Ex: 10, 16"
+              />
+            </div>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingRoom ? "Salvar" : "Criar"}
@@ -180,7 +194,7 @@ export default function RoomsPage({
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Tem certeza que deseja excluir a sala <strong>{deleteTarget?.label}</strong>?
-            Esta ação irá remover também alunos e horários vinculados.
+            Esta ação irá remover também os horários vinculados.
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
@@ -203,6 +217,7 @@ export default function RoomsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Sala</TableHead>
+                  <TableHead>Alunos</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -213,14 +228,10 @@ export default function RoomsPage({
                       {room.name || "-"}
                     </TableCell>
                     <TableCell>
+                      {room.studentCount ?? 0}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex gap-2">
-                        <Link
-                          href={`/schools/${id}/classes/${classId}/rooms/${room.id}/students`}
-                        >
-                          <Button variant="outline" size="icon">
-                            <Users className="size-4" />
-                          </Button>
-                        </Link>
                         <Button
                           variant="outline"
                           size="icon"
@@ -228,13 +239,13 @@ export default function RoomsPage({
                         >
                           <Pencil className="size-4" />
                         </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            onClick={() => handleDelete(room.id, room.name)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDelete(room.id, room.name)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -43,14 +43,7 @@ export interface Room {
   id: string
   classId: string
   name: string
-  createdAt: string
-}
-
-export interface Student {
-  id: string
-  roomId: string
-  name: string
-  registrationNumber: string
+  studentCount: number
   createdAt: string
 }
 
