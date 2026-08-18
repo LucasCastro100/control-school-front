@@ -73,7 +73,7 @@ export interface OrientadorSchedule {
 
 export interface AgendaItem {
   id: string
-  orientadorId: string
+  orientadorIds: string[]
   date: string
   startTime: string
   endTime: string

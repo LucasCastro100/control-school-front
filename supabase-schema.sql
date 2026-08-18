@@ -110,15 +110,21 @@ CREATE TABLE IF NOT EXISTS nap_items (
   year TEXT NOT NULL
 );
 
--- Tabela: agenda (orientador_id agora referencia users)
+-- Tabela: agenda
 CREATE TABLE IF NOT EXISTS agenda (
   id TEXT PRIMARY KEY,
-  orientador_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
   activity TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Tabela: agenda_orientadores (pivot agenda <-> users)
+CREATE TABLE IF NOT EXISTS agenda_orientadores (
+  agenda_id TEXT NOT NULL REFERENCES agenda(id) ON DELETE CASCADE,
+  orientador_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (agenda_id, orientador_id)
 );
 
 -- Tabela: tbr_categories
@@ -149,6 +155,7 @@ ALTER TABLE segment_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE nap_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agenda ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agenda_orientadores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tbr_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tbr_teams ENABLE ROW LEVEL SECURITY;
 
@@ -164,5 +171,6 @@ CREATE POLICY "Allow all" ON segment_configs FOR ALL USING (true) WITH CHECK (tr
 CREATE POLICY "Allow all" ON items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON nap_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON agenda FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON agenda_orientadores FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON tbr_categories FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON tbr_teams FOR ALL USING (true) WITH CHECK (true);

@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select"
 import { usePageHeader } from "@/lib/page-header"
 import { AgendaSkeleton } from "@/components/skeletons/agenda-skeleton"
 import type { AuthUser, User, AgendaItem } from "@/lib/types"
@@ -90,7 +91,7 @@ export default function AgendaPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AgendaItem | null>(null)
   const [formDate, setFormDate] = useState("")
-  const [formOrientador, setFormOrientador] = useState("")
+  const [formOrientadorIds, setFormOrientadorIds] = useState<string[]>([])
   const [formStart, setFormStart] = useState("")
   const [formEnd, setFormEnd] = useState("")
   const [formActivity, setFormActivity] = useState("")
@@ -137,7 +138,7 @@ export default function AgendaPage() {
 
   const visibleItems = useMemo(() => {
     if (filterOrientador) {
-      return items.filter((i) => i.orientadorId === filterOrientador)
+      return items.filter((i) => i.orientadorIds.includes(filterOrientador))
     }
     return items
   }, [items, filterOrientador])
@@ -164,7 +165,7 @@ export default function AgendaPage() {
   function openCreate(day: Date) {
     setEditing(null)
     setFormDate(dateKey(day))
-    setFormOrientador(isAdmin ? "" : (user?.userId ?? ""))
+    setFormOrientadorIds(isAdmin ? [] : (user?.userId ? [user.userId] : []))
     setFormStart("")
     setFormEnd("")
     setFormActivity("")
@@ -174,7 +175,7 @@ export default function AgendaPage() {
   function openEdit(item: AgendaItem) {
     setEditing(item)
     setFormDate(item.date)
-    setFormOrientador(item.orientadorId)
+    setFormOrientadorIds([...item.orientadorIds])
     setFormStart(item.startTime)
     setFormEnd(item.endTime)
     setFormActivity(item.activity)
@@ -182,12 +183,12 @@ export default function AgendaPage() {
   }
 
   async function handleSave() {
-    if (!formDate || !formOrientador || !formStart || !formEnd || !formActivity.trim()) {
+    if (!formDate || formOrientadorIds.length === 0 || !formStart || !formEnd || !formActivity.trim()) {
       return
     }
     setSaving(true)
     const data = {
-      orientadorId: formOrientador,
+      orientadorIds: formOrientadorIds,
       date: formDate,
       startTime: formStart,
       endTime: formEnd,
@@ -325,8 +326,8 @@ export default function AgendaPage() {
                           openEdit(item)
                         }}
                         className="truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-white cursor-pointer hover:opacity-80"
-                        style={{ backgroundColor: orientadorColor(item.orientadorId) }}
-                        title={`${item.activity} (${item.startTime} - ${item.endTime})`}
+                        style={{ backgroundColor: orientadorColor(item.orientadorIds[0] ?? "") }}
+                        title={`${item.activity} (${item.startTime} - ${item.endTime}) - ${item.orientadorIds.map(orientadorName).join(", ")}`}
                       >
                         {item.startTime} {item.activity}
                       </button>
@@ -359,13 +360,13 @@ export default function AgendaPage() {
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label>Orientador</Label>
+              <Label>Orientadores</Label>
               {isAdmin ? (
-                <SearchableSelect
+                <MultiSearchableSelect
                   options={orientadores.map((o) => ({ value: o.id, label: o.name }))}
-                  value={formOrientador}
-                  onChange={setFormOrientador}
-                  placeholder="Selecione o orientador"
+                  value={formOrientadorIds}
+                  onChange={setFormOrientadorIds}
+                  placeholder="Selecione os orientadores"
                   searchPlaceholder="Buscar orientador..."
                   emptyText="Nenhum orientador encontrado."
                 />
@@ -424,7 +425,7 @@ export default function AgendaPage() {
               ) : (
                 <span />
               )}
-              <Button onClick={handleSave} disabled={saving || orientadores.length === 0}>
+              <Button onClick={handleSave} disabled={saving || orientadores.length === 0 || formOrientadorIds.length === 0}>
                 {saving && <LoaderCircle className="size-4 animate-spin" />}
                 {editing ? "Salvar" : "Criar"}
               </Button>
