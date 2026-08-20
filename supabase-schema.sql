@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   email TEXT DEFAULT '' UNIQUE,
   password TEXT,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'orientador', 'professor')),
+  role TEXT NOT NULL CHECK (role IN ('admin', 'orientador', 'professor', 'escola')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

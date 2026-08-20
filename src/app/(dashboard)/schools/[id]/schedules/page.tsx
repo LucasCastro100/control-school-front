@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { use } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, Calendar, Plus, Pencil, Trash2, LoaderCircle, UserRoundCog } from "lucide-react"
+import { ArrowLeft, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,19 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
 import { SchedulesSkeleton } from "@/components/skeletons/schedules-skeleton"
-import type { School, DayOfWeek, User, OrientadorSchedule } from "@/lib/types"
+import type { School, DayOfWeek } from "@/lib/types"
 import { DAYS_OF_WEEK } from "@/lib/types"
 import {
   getSchool,
@@ -32,11 +25,6 @@ import {
   getRooms,
   getSchedulesByClass,
   getAcademicYears,
-  getUsersByRole,
-  getOrientadorSchedulesBySchool,
-  createOrientadorSchedule,
-  updateOrientadorSchedule,
-  deleteOrientadorSchedule,
 } from "@/lib/db"
 
 const DAY_MAP: Record<number, DayOfWeek> = {
@@ -85,22 +73,16 @@ function GeneralSchedulesContent({
   >([])
   const [loading, setLoading] = useState(true)
   const [filterYear, setFilterYear] = useState(searchParams.get("year") || String(new Date().getFullYear()))
-  const [orientadores, setOrientadores] = useState<User[]>([])
-  const [orientadorSchedules, setOrientadorSchedules] = useState<OrientadorSchedule[]>([])
-  const [agendaOpen, setAgendaOpen] = useState(false)
-  const [editingAgenda, setEditingAgenda] = useState<OrientadorSchedule | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [agendaOrientador, setAgendaOrientador] = useState("")
-  const [agendaDay, setAgendaDay] = useState("0")
-  const [agendaStart, setAgendaStart] = useState("")
-  const [agendaEnd, setAgendaEnd] = useState("")
-  const [agendaActivity, setAgendaActivity] = useState("")
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
   const [academicYears, setAcademicYears] = useState<string[]>([])
   const { setHeader } = usePageHeader()
 
   useEffect(() => {
-    getAcademicYears().then((years) => setAcademicYears(years))
+    getAcademicYears().then((years) => {
+      setAcademicYears(years)
+      if (years.length > 0 && !years.includes(filterYear)) {
+        setFilterYear(years[years.length - 1])
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -148,13 +130,6 @@ function GeneralSchedulesContent({
         setGroupedByDay(grouped)
       }
 
-      const [orientadoresData, orientadorSchedulesData] = await Promise.all([
-        getUsersByRole("orientador"),
-        getOrientadorSchedulesBySchool(id, filterYear),
-      ])
-      if (cancelled) return
-      setOrientadores(orientadoresData)
-      setOrientadorSchedules(orientadorSchedulesData)
       setLoading(false)
     }
     load()
@@ -176,69 +151,13 @@ function GeneralSchedulesContent({
           Horários Gerais - {school?.name}
         </h1>
       </div>,
-      <Button size="sm" onClick={openAgendaDialog}>
-        <Plus className="size-4 mr-2" />
-        Nova Agenda
-      </Button>
+      null
     )
   }, [school?.name, id])
 
-  function openAgendaDialog() {
-    setEditingAgenda(null)
-    setAgendaOrientador("")
-    setAgendaDay("0")
-    setAgendaStart("")
-    setAgendaEnd("")
-    setAgendaActivity("")
-    setAgendaOpen(true)
-  }
-
-  function handleEditAgenda(item: OrientadorSchedule) {
-    setEditingAgenda(item)
-    setAgendaOrientador(item.orientadorId)
-    setAgendaDay(String(item.dayOfWeek))
-    setAgendaStart(item.startTime)
-    setAgendaEnd(item.endTime)
-    setAgendaActivity(item.activity)
-    setAgendaOpen(true)
-  }
-
-  async function handleSaveAgenda() {
-    if (!agendaOrientador || !agendaStart || !agendaEnd || !agendaActivity.trim()) return
-    setSaving(true)
-    const data = {
-      schoolId: id,
-      orientadorId: agendaOrientador,
-      dayOfWeek: Number(agendaDay),
-      startTime: agendaStart,
-      endTime: agendaEnd,
-      activity: agendaActivity.trim(),
-      year: filterYear,
-    }
-    if (editingAgenda) {
-      await updateOrientadorSchedule(editingAgenda.id, data)
-    } else {
-      await createOrientadorSchedule(data)
-    }
-    setAgendaOpen(false)
-    setSaving(false)
-    const updated = await getOrientadorSchedulesBySchool(id, filterYear)
-    setOrientadorSchedules(updated)
-  }
-
-  async function confirmDeleteAgenda() {
-    if (!deleteTarget) return
-    await deleteOrientadorSchedule(deleteTarget.id)
-    setDeleteTarget(null)
-    const updated = await getOrientadorSchedulesBySchool(id, filterYear)
-    setOrientadorSchedules(updated)
-  }
-
   if (loading) return <SchedulesSkeleton />
 
-  const hasAny =
-    groupedByDay.some((g) => g.schedules.length > 0) ||
-    orientadorSchedules.length > 0
+  const hasAny = groupedByDay.some((g) => g.schedules.length > 0)
 
   return (
     <>
@@ -274,97 +193,6 @@ function GeneralSchedulesContent({
         </div>
       </div>
 
-      <Dialog open={agendaOpen} onOpenChange={setAgendaOpen}>
-        <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>
-              {editingAgenda ? "Editar Agenda" : "Nova Agenda de Orientador"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Orientador</Label>
-              {orientadores.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum orientador cadastrado. Cadastre orientadores primeiro.
-                </p>
-              ) : (
-                <SearchableSelect
-                  options={orientadores.map((o) => ({ value: o.id, label: o.name }))}
-                  value={agendaOrientador}
-                  onChange={setAgendaOrientador}
-                  placeholder="Selecione o orientador"
-                  searchPlaceholder="Buscar orientador..."
-                  emptyText="Nenhum orientador encontrado."
-                />
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Dia da Semana</Label>
-              <SearchableSelect
-                options={DAYS_OF_WEEK.map((day, idx) => ({
-                  value: String(idx),
-                  label: day,
-                }))}
-                value={agendaDay}
-                onChange={setAgendaDay}
-                placeholder="Selecione o dia"
-                searchPlaceholder="Buscar dia..."
-                emptyText="Nenhum dia encontrado."
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="agendaStart">Horário Início</Label>
-                <Input
-                  id="agendaStart"
-                  type="time"
-                  value={agendaStart}
-                  onChange={(e) => setAgendaStart(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="agendaEnd">Horário Fim</Label>
-                <Input
-                  id="agendaEnd"
-                  type="time"
-                  value={agendaEnd}
-                  onChange={(e) => setAgendaEnd(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="activity">Atividade</Label>
-              <Input
-                id="activity"
-                value={agendaActivity}
-                onChange={(e) => setAgendaActivity(e.target.value)}
-                placeholder="Ex: Visita técnica"
-              />
-            </div>
-            <Button onClick={handleSaveAgenda} disabled={saving || orientadores.length === 0}>
-              {saving && <LoaderCircle className="size-4 animate-spin" />}
-              {editingAgenda ? "Salvar" : "Criar"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>Confirmar exclusão</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Tem certeza que deseja excluir a agenda <strong>{deleteTarget?.label}</strong>?
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={confirmDeleteAgenda}>Excluir</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {!hasAny ? (
         <Card>
           <CardContent className="py-12">
@@ -376,10 +204,7 @@ function GeneralSchedulesContent({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {groupedByDay.map(({ day, schedules }, idx) => {
-            const orientadorAgenda = orientadorSchedules
-              .filter((s) => s.dayOfWeek === idx)
-              .sort((a, b) => a.startTime.localeCompare(b.startTime))
-            if (schedules.length === 0 && orientadorAgenda.length === 0) return null
+            if (schedules.length === 0) return null
 
             return (
               <Card key={day} className="pt-0 h-fit">
@@ -443,54 +268,6 @@ function GeneralSchedulesContent({
                       </div>
                     ))}
                   </div>
-                  {orientadorAgenda.length > 0 && (
-                    <>
-                      <div className="mt-4 mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <UserRoundCog className="size-3.5" />
-                        Agenda Orientador
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {orientadorAgenda.map((agenda) => {
-                          const orientador = orientadores.find((o) => o.id === agenda.orientadorId)
-                          return (
-                            <div
-                              key={agenda.id}
-                              className="flex items-start justify-between gap-2 rounded-lg border p-3 border-l-transparent transition-colors"
-                              style={{ borderLeftColor: "oklch(0.62 0.16 130)" }}
-                            >
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span className="font-medium truncate">{orientador?.name ?? "Orientador"}</span>
-                                </div>
-                                <span className="font-medium text-sm">{agenda.activity}</span>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span>{agenda.startTime} - {agenda.endTime}</span>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="size-7"
-                                  onClick={() => handleEditAgenda(agenda)}
-                                >
-                                  <Pencil className="size-3.5" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  className="size-7"
-                                  onClick={() => setDeleteTarget({ id: agenda.id, label: agenda.activity })}
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </>
-                  )}
                 </CardContent>
               </Card>
             )

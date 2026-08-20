@@ -18,7 +18,7 @@ export interface User {
   name: string
   email: string
   password?: string
-  role: "admin" | "orientador" | "professor"
+  role: "admin" | "orientador" | "professor" | "escola"
   createdAt: string
 }
 

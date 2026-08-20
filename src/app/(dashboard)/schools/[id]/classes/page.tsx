@@ -177,7 +177,7 @@ export default function ClassesPage() {
         <Link href={"/schools/" + id + "/schedules?year=" + filterYear}>
           <Button variant="outline" size="sm" className="gap-2">
             <Calendar className="size-4" />
-            General Schedules
+            Horário geral
           </Button>
         </Link>
         <Button size="sm" onClick={() => {

@@ -75,7 +75,6 @@ export default function SchedulesPage({
   const [dayOfWeek, setDayOfWeek] = useState("0")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
-  const [subject, setSubject] = useState("")
   const [teacher, setTeacher] = useState("")
   const [fortnight, setFortnight] = useState("1")
   const [pageLoading, setPageLoading] = useState(true)
@@ -137,7 +136,6 @@ export default function SchedulesPage({
       setDayOfWeek("0")
       setStartTime("")
       setEndTime("")
-      setSubject("")
       setTeacher("")
       setFortnight("1")
     } else {
@@ -151,14 +149,13 @@ export default function SchedulesPage({
     setDayOfWeek(String(schedule.dayOfWeek))
     setStartTime(schedule.startTime)
     setEndTime(schedule.endTime)
-    setSubject(schedule.subject)
     setTeacher(schedule.teacher)
     setFortnight(String(schedule.fortnight ?? 1))
     setOpen(true)
   }
 
   async function handleSave() {
-    if (!startTime || !endTime || !subject.trim() || !teacher.trim() || !formRoom)
+    if (!startTime || !endTime || !teacher.trim() || !formRoom)
       return
     setSaving(true)
     setTimeout(async () => {
@@ -172,7 +169,7 @@ export default function SchedulesPage({
         dayOfWeek: Number(dayOfWeek),
         startTime,
         endTime,
-        subject: subject.trim(),
+        subject: "Educação Tecnológica",
         teacher: teacher.trim(),
         fortnight: fortnightValue,
       }
@@ -331,15 +328,6 @@ export default function SchedulesPage({
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="subject">Disciplina</Label>
-                <Input
-                  id="subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Ex: Matemática"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
                 <Label htmlFor="teacher">Professor</Label>
                 <Input
                   id="teacher"
@@ -431,7 +419,7 @@ export default function SchedulesPage({
                             </span>
                           )}
                           <span className="font-medium">
-                            {schedule.subject}
+                            Educação Tecnológica
                           </span>
                           <span className="text-sm text-muted-foreground">
                             {schedule.startTime} -{" "}
@@ -459,7 +447,7 @@ export default function SchedulesPage({
                             variant="ghost"
                             size="icon"
                             className="size-8"
-                            onClick={() => setDeleteTarget({ id: schedule.id, label: `${schedule.subject} (${schedule.startTime}-${schedule.endTime})` })}
+                            onClick={() => setDeleteTarget({ id: schedule.id, label: `${schedule.startTime}-${schedule.endTime}` })}
                           >
                             <Trash2 className="size-3" />
                           </Button>
