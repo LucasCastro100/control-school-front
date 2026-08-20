@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { GraduationCap, LogIn, Eye, EyeOff } from "lucide-react"
 import { z } from "zod"
@@ -117,6 +118,9 @@ export default function LoginPage() {
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password}</p>
               )}
+              <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground text-right">
+                Esqueci a senha
+              </Link>
             </div>
             {serverError && (
               <p className="text-sm text-destructive">{serverError}</p>

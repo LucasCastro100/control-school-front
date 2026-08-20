@@ -106,6 +106,16 @@ export function AppSidebar({ user }: { user: AuthUser | null }) {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
+              render={<Link href="/profile" />}
+              tooltip="Meu Perfil"
+              isActive={pathname === "/profile"}
+            >
+              <User />
+              <span>Meu Perfil</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
               onClick={handleLogout}
               tooltip="Sair"
               className="text-muted-foreground hover:text-foreground"

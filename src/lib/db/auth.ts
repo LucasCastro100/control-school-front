@@ -83,3 +83,34 @@ export async function getSession(): Promise<AuthUser | null> {
     schoolId: meta?.school_id,
   }
 }
+
+export async function resetPassword(email: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  return { error: error?.message ?? null }
+}
+
+export async function updatePassword(password: string): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.auth.updateUser({ password })
+  return { error: error?.message ?? null }
+}
+
+export async function updateProfile(data: { name: string }): Promise<{ error: string | null }> {
+  const supabase = createClient()
+  const { error } = await supabase.auth.updateUser({ data: { name: data.name } })
+  if (error) return { error: error.message }
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user?.user_metadata?.user_id) {
+    const { error: dbError } = await supabase
+      .from("users")
+      .update({ name: data.name })
+      .eq("id", user.user_metadata.user_id)
+    if (dbError) return { error: dbError.message }
+  }
+
+  return { error: null }
+}
