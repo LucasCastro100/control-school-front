@@ -1,116 +1,84 @@
 import type { AuthUser } from "../types"
-import { createClient } from "@/utils/supabase/client"
+import { hashPassword } from "@/lib/auth/crypto"
 
 export type LoginError = "invalid" | "email_not_confirmed" | null
 
 export async function login(email: string, password: string): Promise<{ user: AuthUser | null; error: LoginError }> {
-  const supabase = createClient()
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
 
-  const { data, error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+    const data = await res.json()
 
-  if (signInError) {
-    if (signInError.message?.includes("Email not confirmed")) {
-      return { user: null, error: "email_not_confirmed" }
+    if (!res.ok) {
+      return { user: null, error: "invalid" }
     }
+
+    return { user: data.user as AuthUser, error: null }
+  } catch {
     return { user: null, error: "invalid" }
-  }
-
-  if (!data.user) return { user: null, error: "invalid" }
-
-  const meta = data.user.user_metadata
-  const role = meta?.role ?? "admin"
-  let userId = meta?.user_id
-
-  // Auto-criar registro na tabela users se não existir
-  if (!userId) {
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .single()
-
-    if (existingUser) {
-      userId = existingUser.id
-    } else {
-      userId = crypto.randomUUID()
-      const { error: insertError } = await supabase.from("users").insert({
-        id: userId,
-        name: meta?.name ?? data.user.email?.split("@")[0] ?? "",
-        email: data.user.email ?? "",
-        password: "",
-        role,
-        created_at: new Date().toISOString(),
-      })
-      if (!insertError) {
-        await supabase.auth.updateUser({
-          data: { user_id: userId },
-        })
-      }
-    }
-  }
-
-  return {
-    user: {
-      email: data.user.email ?? "",
-      name: meta?.name ?? "",
-      role,
-      userId,
-      schoolId: meta?.school_id,
-    },
-    error: null,
   }
 }
 
 export async function logout(): Promise<void> {
-  const supabase = createClient()
-  await supabase.auth.signOut()
+  await fetch("/api/auth/logout", { method: "POST" })
 }
 
 export async function getSession(): Promise<AuthUser | null> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return null
-
-  const meta = session.user.user_metadata
-  return {
-    email: session.user.email ?? "",
-    name: meta?.name ?? "",
-    role: meta?.role ?? "admin",
-    userId: meta?.user_id,
-    schoolId: meta?.school_id,
+  try {
+    const res = await fetch("/api/auth/session")
+    if (!res.ok) return null
+    const data = await res.json()
+    return (data.user as AuthUser) ?? null
+  } catch {
+    return null
   }
 }
 
 export async function resetPassword(email: string): Promise<{ error: string | null }> {
-  const supabase = createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
-  })
-  return { error: error?.message ?? null }
+  return { error: "Funcionalidade desabilitada" }
 }
 
 export async function updatePassword(password: string): Promise<{ error: string | null }> {
-  const supabase = createClient()
-  const { error } = await supabase.auth.updateUser({ password })
-  return { error: error?.message ?? null }
+  try {
+    const res = await fetch("/api/auth/session")
+    if (!res.ok) return { error: "Não autenticado" }
+    const { user } = await res.json()
+
+    const { createClient } = await import("@/utils/supabase/client")
+    const supabase = createClient()
+    const hashed = await hashPassword(password)
+
+    const { error } = await supabase
+      .from("users")
+      .update({ password: hashed })
+      .eq("id", user.userId)
+
+    return { error: error?.message ?? null }
+  } catch {
+    return { error: "Erro ao atualizar senha" }
+  }
 }
 
 export async function updateProfile(data: { name: string }): Promise<{ error: string | null }> {
-  const supabase = createClient()
-  const { error } = await supabase.auth.updateUser({ data: { name: data.name } })
-  if (error) return { error: error.message }
+  try {
+    const res = await fetch("/api/auth/session")
+    if (!res.ok) return { error: "Não autenticado" }
+    const { user } = await res.json()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user?.user_metadata?.user_id) {
-    const { error: dbError } = await supabase
+    const { createClient } = await import("@/utils/supabase/client")
+    const supabase = createClient()
+
+    const { error } = await supabase
       .from("users")
       .update({ name: data.name })
-      .eq("id", user.user_metadata.user_id)
-    if (dbError) return { error: dbError.message }
-  }
+      .eq("id", user.userId)
 
-  return { error: null }
+    return { error: error?.message ?? null }
+  } catch {
+    return { error: "Erro ao atualizar perfil" }
+  }
 }

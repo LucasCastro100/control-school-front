@@ -2,41 +2,46 @@ import type { User } from "../types"
 import { createClient } from "@/utils/supabase/client"
 const supabase = createClient()
 import { generateId, toCamel, toSnake } from "./helpers"
+import { hashPassword } from "@/lib/auth/crypto"
 
 export async function getUsers(): Promise<User[]> {
-  const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false })
+  const { data } = await supabase.from("users").select("id, name, email, role, created_at").order("created_at", { ascending: false })
   return (data ?? []).map(toCamel<User>)
 }
 
 export async function getUsersByRole(role: User["role"]): Promise<User[]> {
-  const { data } = await supabase.from("users").select("*").eq("role", role)
+  const { data } = await supabase.from("users").select("id, name, email, role, created_at").eq("role", role)
   return (data ?? []).map(toCamel<User>)
 }
 
 export async function getUser(id: string): Promise<User | undefined> {
-  const { data } = await supabase.from("users").select("*").eq("id", id).single()
+  const { data } = await supabase.from("users").select("id, name, email, role, created_at").eq("id", id).single()
   return data ? toCamel<User>(data) : undefined
 }
 
 export async function createUser(data: Omit<User, "id" | "createdAt">): Promise<User> {
   const password = data.password || "mudar123"
-  const row = { ...toSnake(data as Record<string, unknown>), password, id: generateId(), created_at: new Date().toISOString() }
+  const hashedPassword = await hashPassword(password)
+
+  const row = {
+    ...toSnake(data as Record<string, unknown>),
+    password: hashedPassword,
+    id: generateId(),
+    created_at: new Date().toISOString(),
+  }
+
   const { error } = await supabase.from("users").insert(row)
   if (error) throw error
-
-  // Criar no Supabase Auth pra poder logar
-  await supabase.auth.signUp({
-    email: data.email,
-    password,
-    options: { data: { role: data.role, name: data.name, user_id: row.id } },
-  })
 
   return toCamel<User>(row)
 }
 
 export async function updateUser(id: string, data: Partial<Omit<User, "id" | "createdAt">>): Promise<User | undefined> {
   const snakeData = toSnake(data as Record<string, unknown>)
-  const { data: updated } = await supabase.from("users").update(snakeData).eq("id", id).select().single()
+  if (snakeData.password) {
+    snakeData.password = await hashPassword(snakeData.password as string)
+  }
+  const { data: updated } = await supabase.from("users").update(snakeData).eq("id", id).select("id, name, email, role, created_at").single()
   return updated ? toCamel<User>(updated) : undefined
 }
 
