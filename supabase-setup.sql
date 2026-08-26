@@ -27,7 +27,7 @@ DELETE FROM auth.users;
 -- Senha: mudar123 (hash bcrypt com 12 rounds)
 INSERT INTO users (id, name, email, password, role, created_at)
 VALUES (
-  'admin-001',
+  'f6ed0cfa-9e2e-4ab4-b880-d6c47ecbe0c3',
   'Administrador',
   'admin@gmail.com',
   '$2b$12$bZtePrQRtemhJ3umLi/Rn.XMloxE4HgRtc9r7jzoumHnb5Cz.PKdK',
