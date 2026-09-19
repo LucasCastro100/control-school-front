@@ -29,13 +29,18 @@ async function handler(request: NextRequest, context: { params: Promise<{ path: 
 
   const contentType = backendRes.headers.get("content-type") ?? "application/json"
   const text = await backendRes.text()
+  const headers = {
+    "Content-Type": contentType,
+    "Cache-Control": "no-store",
+  }
+
+  if (backendRes.status === 204 || backendRes.status === 205 || backendRes.status === 304) {
+    return new NextResponse(null, { status: backendRes.status, headers })
+  }
 
   return new NextResponse(text, {
     status: backendRes.status,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "no-store",
-    },
+    headers,
   })
 }
 

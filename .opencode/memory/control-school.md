@@ -55,7 +55,7 @@ Browser → fetch('/api/backend/<path>')            (helper api() em src/lib/bac
 6. `SchoolController::store` **não cria usuário escola** nem vínculo no pivô `user_schools` (gap; decisão posterior). Vínculo p/ role `escola` via `/users/{user}/schools`.
 7. `items.naps` é JSON array no back (cast no model) — front manda/lê array.
 8. `getSegmentConfig(schoolId, segmentName)`: back não filtra por `segment_name` → filtro client-side (fetch school_id + `find`).
-9. **PENDENTE**: `DELETE /api/schools/{id}` retorna **500** (durante smoke test) — investigar (provável constraint no pivot/agenda). Criar escola, PATCH parcial, GET e DELETE de school via proxy = testado.
+9. **RESOLVIDO**: `DELETE /api/schools/{id}` via proxy dava 500 — `Response` rejeita status 204 com body. Fix em `src/app/api/backend/[...path]/route.ts` (retorna `NextResponse(null, {status})` para 204/205/304).
 10. Dica: para rodar back e front ao mesmo tempo como "2 projetos": `opencode` a partir de cada repo, ou `php artisan serve` (back) + `pnpm dev` (front).
 
 ---
