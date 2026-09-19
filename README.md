@@ -29,7 +29,12 @@ Sistema web para gerenciamento de escolas, turmas, salas, alunos, horários, ite
 
 ## Como usar
 
+Requisitos: backend Laravel rodando (repo `control-school-back`).
+
 ```bash
+# .env.local
+BACKEND_URL=http://localhost:8000
+
 pnpm install
 pnpm dev
 ```
@@ -40,12 +45,8 @@ Acesse [http://localhost:3000](http://localhost:3000).
 
 | Email | Senha |
 |---|---|
-| admin@gmail.com | mudar123 |
+| lucascastro121295@gmail.com | mudar123 |
 
 ## Persistência
 
-Todos os dados ficam no **localStorage** do navegador. Não há backend nem banco de dados externo.
-
-Na primeira vez que o sistema é aberto em um navegador novo, os dados são populados a partir do arquivo `src/data/seed.json`. As alterações feitas na aplicação são automaticamente sincronizadas com um cache em memória.
-
-Para exportar os dados manualmente, chame `exportStorageData()` no console do navegador.
+Todos os dados ficam no backend **Laravel** (`control-school-back`), acessado via proxy Next (`/api/backend/*`). Autenticação por token Sanctum em cookie HttpOnly `session_token`.
