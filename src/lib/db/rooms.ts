@@ -1,36 +1,48 @@
 import type { Room } from "../types"
-import { createClient } from "@/utils/supabase/client"
-const supabase = createClient()
-import { generateId, toCamel, toSnake } from "./helpers"
+import { api } from "@/lib/backend"
+import { toCamel } from "./helpers"
 
 export async function getRooms(): Promise<Room[]> {
-  const { data } = await supabase.from("rooms").select("*")
+  const data = await api<Record<string, unknown>[]>("/rooms")
   return (data ?? []).map(toCamel<Room>)
 }
 
 export async function getRoomsByClass(classId: string): Promise<Room[]> {
-  const { data } = await supabase.from("rooms").select("*").eq("class_id", classId)
+  const data = await api<Record<string, unknown>[]>("/rooms", { query: { class_id: classId } })
   return (data ?? []).map(toCamel<Room>)
 }
 
 export async function getRoom(id: string): Promise<Room | undefined> {
-  const { data } = await supabase.from("rooms").select("*").eq("id", id).single()
-  return data ? toCamel<Room>(data) : undefined
+  try {
+    const data = await api<Record<string, unknown>>(`/rooms/${id}`)
+    return toCamel<Room>(data)
+  } catch {
+    return undefined
+  }
 }
 
 export async function createRoom(data: Omit<Room, "id" | "createdAt">): Promise<Room> {
-  const row = { ...toSnake(data as Record<string, unknown>), id: generateId(), created_at: new Date().toISOString() }
-  const { error } = await supabase.from("rooms").insert(row)
-  if (error) throw error
-  return toCamel<Room>(row)
+  const created = await api<Record<string, unknown>>("/rooms", {
+    method: "POST",
+    body: { class_id: data.classId, name: data.name, student_count: data.studentCount },
+  })
+  return toCamel<Room>(created)
 }
 
 export async function updateRoom(id: string, data: Partial<Omit<Room, "id" | "createdAt">>): Promise<Room | undefined> {
-  const snakeData = toSnake(data as Record<string, unknown>)
-  const { data: updated } = await supabase.from("rooms").update(snakeData).eq("id", id).select().single()
-  return updated ? toCamel<Room>(updated) : undefined
+  const body: Record<string, unknown> = {}
+  if (data.classId !== undefined) body.class_id = data.classId
+  if (data.name !== undefined) body.name = data.name
+  if (data.studentCount !== undefined) body.student_count = data.studentCount
+
+  try {
+    const updated = await api<Record<string, unknown>>(`/rooms/${id}`, { method: "PUT", body })
+    return toCamel<Room>(updated)
+  } catch {
+    return undefined
+  }
 }
 
 export async function deleteRoom(id: string): Promise<void> {
-  await supabase.from("rooms").delete().eq("id", id)
+  await api<void>(`/rooms/${id}`, { method: "DELETE" })
 }

@@ -1,12 +1,11 @@
 import type { School } from "../types"
-import { createClient } from "@/utils/supabase/client"
-const supabase = createClient()
-import { generateId, toCamel, toSnake } from "./helpers"
+import { api } from "@/lib/backend"
+import { toCamel } from "./helpers"
 import { getClasses } from "./classes"
-import { hashPassword } from "@/lib/auth/crypto"
+import { getAllNapItems } from "./nap-items"
 
 export async function getSchools(): Promise<School[]> {
-  const { data } = await supabase.from("schools").select("*").order("created_at", { ascending: false })
+  const data = await api<Record<string, unknown>[]>("/schools")
   return (data ?? []).map(toCamel<School>)
 }
 
@@ -25,55 +24,61 @@ export async function getSchoolYears(): Promise<string[]> {
 
 export async function getAcademicYears(): Promise<string[]> {
   const classes = await getClasses()
-  const { data: napItems } = await supabase.from("nap_items").select("year")
+  const napItems = await getAllNapItems()
   const classYears = classes.map((c) => c.year).filter(Boolean)
-  const napItemYears = (napItems ?? []).map((n) => n.year).filter(Boolean)
+  const napItemYears = napItems.map((n) => n.year).filter(Boolean)
   const sorted = Array.from(new Set([...classYears, ...napItemYears])).sort()
   return sorted.length > 0 ? sorted : [String(new Date().getFullYear())]
 }
 
 export async function getSchool(id: string): Promise<School | undefined> {
-  const { data } = await supabase.from("schools").select("*").eq("id", id).single()
-  return data ? toCamel<School>(data) : undefined
+  try {
+    const data = await api<Record<string, unknown>>(`/schools/${id}`)
+    return toCamel<School>(data)
+  } catch {
+    return undefined
+  }
 }
 
 export async function createSchool(data: Omit<School, "id" | "createdAt">): Promise<School> {
-  const password = data.password || "mudar123"
-  const hashedPassword = await hashPassword(password)
-
-  const school = {
-    ...toSnake(data as Record<string, unknown>),
-    password: hashedPassword,
-    id: generateId(),
-    created_at: new Date().toISOString(),
+  const body: Record<string, unknown> = {
+    name: data.name,
+    address: data.address,
+    region: data.region,
+    state: data.state,
+    city: data.city,
+    color: data.color,
+    email: data.email,
+    schedule_type: data.scheduleType,
+    active: data.active,
   }
+  if (data.password) body.password = data.password
 
-  const { error } = await supabase.from("schools").insert(school)
-  if (error) throw error
-
-  if (data.email) {
-    await supabase.from("users").insert({
-      id: generateId(),
-      name: data.name,
-      email: data.email,
-      password: hashedPassword,
-      role: "escola",
-      created_at: new Date().toISOString(),
-    })
-  }
-
-  return toCamel<School>(school)
+  const created = await api<Record<string, unknown>>("/schools", { method: "POST", body })
+  return toCamel<School>(created)
 }
 
 export async function updateSchool(id: string, data: Partial<Omit<School, "id" | "createdAt">>): Promise<School | undefined> {
-  const snakeData = toSnake(data as Record<string, unknown>)
-  if (snakeData.password) {
-    snakeData.password = await hashPassword(snakeData.password as string)
+  const body: Record<string, unknown> = {}
+  if (data.name !== undefined) body.name = data.name
+  if (data.address !== undefined) body.address = data.address
+  if (data.region !== undefined) body.region = data.region
+  if (data.state !== undefined) body.state = data.state
+  if (data.city !== undefined) body.city = data.city
+  if (data.color !== undefined) body.color = data.color
+  if (data.email !== undefined) body.email = data.email
+  if (data.password !== undefined) body.password = data.password
+  if (data.scheduleType !== undefined) body.schedule_type = data.scheduleType
+  if (data.active !== undefined) body.active = data.active
+
+  try {
+    const updated = await api<Record<string, unknown>>(`/schools/${id}`, { method: "PUT", body })
+    return toCamel<School>(updated)
+  } catch {
+    return undefined
   }
-  const { data: updated } = await supabase.from("schools").update(snakeData).eq("id", id).select().single()
-  return updated ? toCamel<School>(updated) : undefined
 }
 
 export async function deleteSchool(id: string): Promise<void> {
-  await supabase.from("schools").delete().eq("id", id)
+  await api<void>(`/schools/${id}`, { method: "DELETE" })
 }

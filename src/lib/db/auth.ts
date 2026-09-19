@@ -1,5 +1,4 @@
 import type { AuthUser } from "../types"
-import { hashPassword } from "@/lib/auth/crypto"
 
 export type LoginError = "invalid" | "email_not_confirmed" | null
 
@@ -48,16 +47,13 @@ export async function updatePassword(password: string): Promise<{ error: string 
     if (!res.ok) return { error: "Não autenticado" }
     const { user } = await res.json()
 
-    const { createClient } = await import("@/utils/supabase/client")
-    const supabase = createClient()
-    const hashed = await hashPassword(password)
+    const r = await fetch(`/api/backend/users/${user.userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    })
 
-    const { error } = await supabase
-      .from("users")
-      .update({ password: hashed })
-      .eq("id", user.userId)
-
-    return { error: error?.message ?? null }
+    return { error: r.ok ? null : "Erro ao atualizar senha" }
   } catch {
     return { error: "Erro ao atualizar senha" }
   }
@@ -69,15 +65,13 @@ export async function updateProfile(data: { name: string }): Promise<{ error: st
     if (!res.ok) return { error: "Não autenticado" }
     const { user } = await res.json()
 
-    const { createClient } = await import("@/utils/supabase/client")
-    const supabase = createClient()
+    const r = await fetch(`/api/backend/users/${user.userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: data.name }),
+    })
 
-    const { error } = await supabase
-      .from("users")
-      .update({ name: data.name })
-      .eq("id", user.userId)
-
-    return { error: error?.message ?? null }
+    return { error: r.ok ? null : "Erro ao atualizar perfil" }
   } catch {
     return { error: "Erro ao atualizar perfil" }
   }

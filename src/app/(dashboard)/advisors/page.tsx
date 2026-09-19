@@ -29,14 +29,12 @@ import {
 import type { User } from "@/lib/types"
 import {
   getUsersByRole,
+  getSchoolsByUser,
   createUser,
   updateUser,
   deleteUser,
 } from "@/lib/db"
-import { createClient } from "@/utils/supabase/client"
 import { AdvisorsSkeleton } from "@/components/skeletons/advisors-skeleton"
-
-const supabase = createClient()
 
 export default function OrientadoresPage() {
   const [orientadores, setOrientadores] = useState<User[]>([])
@@ -57,11 +55,12 @@ export default function OrientadoresPage() {
     async function load() {
       const orientadoresData = await getUsersByRole("orientador")
       setOrientadores(orientadoresData)
-      const { data: links } = await supabase.from("user_schools").select("user_id")
       const counts: Record<string, number> = {}
-      for (const link of links ?? []) {
-        counts[link.user_id] = (counts[link.user_id] ?? 0) + 1
-      }
+      await Promise.all(
+        orientadoresData.map(async (o) => {
+          counts[o.id] = (await getSchoolsByUser(o.id)).length
+        })
+      )
       setSchoolCounts(counts)
       setPageLoading(false)
     }
@@ -86,11 +85,12 @@ export default function OrientadoresPage() {
   async function refresh() {
     const orientadoresData = await getUsersByRole("orientador")
     setOrientadores(orientadoresData)
-    const { data: links } = await supabase.from("user_schools").select("user_id")
     const counts: Record<string, number> = {}
-    for (const link of links ?? []) {
-      counts[link.user_id] = (counts[link.user_id] ?? 0) + 1
-    }
+    await Promise.all(
+      orientadoresData.map(async (o) => {
+        counts[o.id] = (await getSchoolsByUser(o.id)).length
+      })
+    )
     setSchoolCounts(counts)
   }
 

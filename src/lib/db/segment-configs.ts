@@ -1,38 +1,34 @@
 import type { SegmentConfig } from "../types"
-import { createClient } from "@/utils/supabase/client"
-const supabase = createClient()
-import { generateId, toCamel } from "./helpers"
+import { api } from "@/lib/backend"
+import { toCamel } from "./helpers"
 
 export async function getSegmentConfigs(schoolId: string): Promise<SegmentConfig[]> {
-  const { data } = await supabase.from("segment_configs").select("*").eq("school_id", schoolId)
+  const data = await api<Record<string, unknown>[]>("/segment-configs", { query: { school_id: schoolId } })
   return (data ?? []).map(toCamel<SegmentConfig>)
 }
 
 export async function getSegmentConfigsAll(): Promise<SegmentConfig[]> {
-  const { data } = await supabase.from("segment_configs").select("*")
+  const data = await api<Record<string, unknown>[]>("/segment-configs")
   return (data ?? []).map(toCamel<SegmentConfig>)
 }
 
 export async function getSegmentConfig(schoolId: string, segmentName: string): Promise<SegmentConfig | undefined> {
-  const { data } = await supabase.from("segment_configs").select("*").eq("school_id", schoolId).eq("segment_name", segmentName).single()
-  return data ? toCamel<SegmentConfig>(data) : undefined
+  const configs = await getSegmentConfigs(schoolId)
+  return configs.find((c) => c.segmentName === segmentName)
 }
 
 export async function upsertSegmentConfig(schoolId: string, segmentName: string, data: { tapetes: number; kits: number }, year: string): Promise<SegmentConfig> {
-  const { data: existing } = await supabase.from("segment_configs").select("*").eq("school_id", schoolId).eq("segment_name", segmentName).eq("year", year).single()
-  if (existing) {
-    const { data: updated } = await supabase.from("segment_configs").update({ tapetes: data.tapetes, kits: data.kits }).eq("id", existing.id).select().single()
-    return toCamel<SegmentConfig>(updated!)
-  }
-  const row = { id: generateId(), school_id: schoolId, segment_name: segmentName, tapetes: data.tapetes, kits: data.kits, year }
-  await supabase.from("segment_configs").insert(row)
-  return toCamel<SegmentConfig>(row)
+  const created = await api<Record<string, unknown>>("/segment-configs/upsert", {
+    method: "POST",
+    body: { school_id: schoolId, segment_name: segmentName, tapetes: data.tapetes, kits: data.kits, year },
+  })
+  return toCamel<SegmentConfig>(created)
 }
 
 export async function deleteSegmentConfig(id: string): Promise<void> {
-  await supabase.from("segment_configs").delete().eq("id", id)
+  await api<void>(`/segment-configs/${id}`, { method: "DELETE" })
 }
 
 export async function deleteSegmentConfigsBySchool(schoolId: string): Promise<void> {
-  await supabase.from("segment_configs").delete().eq("school_id", schoolId)
+  await api<void>(`/segment-configs/by-school/${schoolId}`, { method: "DELETE" })
 }

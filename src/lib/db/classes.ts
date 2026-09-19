@@ -1,41 +1,54 @@
 import type { Class } from "../types"
-import { createClient } from "@/utils/supabase/client"
-const supabase = createClient()
-import { generateId, toCamel, toSnake } from "./helpers"
+import { api } from "@/lib/backend"
+import { toCamel } from "./helpers"
 
 export async function getClasses(): Promise<Class[]> {
-  const { data } = await supabase.from("classes").select("*").order("created_at", { ascending: false })
+  const data = await api<Record<string, unknown>[]>("/classes")
   return (data ?? []).map(toCamel<Class>)
 }
 
 export async function getClassesBySchool(schoolId: string): Promise<Class[]> {
-  const { data } = await supabase.from("classes").select("*").eq("school_id", schoolId)
+  const data = await api<Record<string, unknown>[]>("/classes", { query: { school_id: schoolId } })
   return (data ?? []).map(toCamel<Class>)
 }
 
 export async function getClass(id: string): Promise<Class | undefined> {
-  const { data } = await supabase.from("classes").select("*").eq("id", id).single()
-  return data ? toCamel<Class>(data) : undefined
+  try {
+    const data = await api<Record<string, unknown>>(`/classes/${id}`)
+    return toCamel<Class>(data)
+  } catch {
+    return undefined
+  }
 }
 
 export async function getClassesBySchoolAndYear(schoolId: string, year: string): Promise<Class[]> {
-  const { data } = await supabase.from("classes").select("*").eq("school_id", schoolId).eq("year", year)
+  const data = await api<Record<string, unknown>[]>("/classes", { query: { school_id: schoolId, year } })
   return (data ?? []).map(toCamel<Class>)
 }
 
 export async function createClass(data: Omit<Class, "id" | "createdAt">): Promise<Class> {
-  const row = { ...toSnake(data as Record<string, unknown>), id: generateId(), created_at: new Date().toISOString() }
-  const { error } = await supabase.from("classes").insert(row)
-  if (error) throw error
-  return toCamel<Class>(row)
+  const created = await api<Record<string, unknown>>("/classes", {
+    method: "POST",
+    body: { school_id: data.schoolId, nap: data.nap, name: data.name, year: data.year },
+  })
+  return toCamel<Class>(created)
 }
 
 export async function updateClass(id: string, data: Partial<Omit<Class, "id" | "createdAt">>): Promise<Class | undefined> {
-  const snakeData = toSnake(data as Record<string, unknown>)
-  const { data: updated } = await supabase.from("classes").update(snakeData).eq("id", id).select().single()
-  return updated ? toCamel<Class>(updated) : undefined
+  const body: Record<string, unknown> = {}
+  if (data.schoolId !== undefined) body.school_id = data.schoolId
+  if (data.nap !== undefined) body.nap = data.nap
+  if (data.name !== undefined) body.name = data.name
+  if (data.year !== undefined) body.year = data.year
+
+  try {
+    const updated = await api<Record<string, unknown>>(`/classes/${id}`, { method: "PUT", body })
+    return toCamel<Class>(updated)
+  } catch {
+    return undefined
+  }
 }
 
 export async function deleteClass(id: string): Promise<void> {
-  await supabase.from("classes").delete().eq("id", id)
+  await api<void>(`/classes/${id}`, { method: "DELETE" })
 }

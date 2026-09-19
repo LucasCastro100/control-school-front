@@ -1,16 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { GraduationCap, Lock, ArrowLeft, LoaderCircle, CheckCircle, Eye, EyeOff } from "lucide-react"
+import { GraduationCap, Lock, LoaderCircle, CheckCircle, Eye, EyeOff } from "lucide-react"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updatePassword } from "@/lib/db"
-import { createClient } from "@/utils/supabase/client"
 
 const schema = z.object({
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
@@ -29,24 +28,6 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [checking, setChecking] = useState(true)
-
-  useEffect(() => {
-    const supabase = createClient()
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setChecking(false)
-      }
-    })
-
-    supabase.auth.getSession().then(({ data: sessionData }) => {
-      if (sessionData.session) {
-        setChecking(false)
-      }
-    })
-
-    return () => data.subscription.unsubscribe()
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -68,14 +49,6 @@ export default function ResetPasswordPage() {
       setSuccess(true)
       setTimeout(() => router.push("/login"), 3000)
     }
-  }
-
-  if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[oklch(0.12_0.025_265)] via-[oklch(0.14_0.03_280)] to-[oklch(0.12_0.025_250)] p-4">
-        <LoaderCircle className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    )
   }
 
   return (

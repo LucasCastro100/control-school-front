@@ -1,76 +1,72 @@
 import type { User } from "../types"
-import { createClient } from "@/utils/supabase/client"
-const supabase = createClient()
-import { generateId, toCamel, toSnake } from "./helpers"
-import { hashPassword } from "@/lib/auth/crypto"
+import { api } from "@/lib/backend"
+import { toCamel } from "./helpers"
 
 export async function getUsers(): Promise<User[]> {
-  const { data } = await supabase.from("users").select("id, name, email, role, created_at").order("created_at", { ascending: false })
+  const data = await api<Record<string, unknown>[]>("/users")
   return (data ?? []).map(toCamel<User>)
 }
 
 export async function getUsersByRole(role: User["role"]): Promise<User[]> {
-  const { data } = await supabase.from("users").select("id, name, email, role, created_at").eq("role", role)
+  const data = await api<Record<string, unknown>[]>("/users", { query: { role } })
   return (data ?? []).map(toCamel<User>)
 }
 
 export async function getUser(id: string): Promise<User | undefined> {
-  const { data } = await supabase.from("users").select("id, name, email, role, created_at").eq("id", id).single()
-  return data ? toCamel<User>(data) : undefined
+  try {
+    const data = await api<Record<string, unknown>>(`/users/${id}`)
+    return toCamel<User>(data)
+  } catch {
+    return undefined
+  }
 }
 
 export async function createUser(data: Omit<User, "id" | "createdAt">): Promise<User> {
-  const password = data.password || "mudar123"
-  const hashedPassword = await hashPassword(password)
-
-  const row = {
-    ...toSnake(data as Record<string, unknown>),
-    password: hashedPassword,
-    id: generateId(),
-    created_at: new Date().toISOString(),
-  }
-
-  const { error } = await supabase.from("users").insert(row)
-  if (error) throw error
-
-  return toCamel<User>(row)
+  const created = await api<Record<string, unknown>>("/users", {
+    method: "POST",
+    body: { name: data.name, email: data.email, password: data.password, role: data.role },
+  })
+  return toCamel<User>(created)
 }
 
 export async function updateUser(id: string, data: Partial<Omit<User, "id" | "createdAt">>): Promise<User | undefined> {
-  const snakeData = toSnake(data as Record<string, unknown>)
-  if (snakeData.password) {
-    snakeData.password = await hashPassword(snakeData.password as string)
+  const body: Record<string, unknown> = {}
+  if (data.name !== undefined) body.name = data.name
+  if (data.email !== undefined) body.email = data.email
+  if (data.password !== undefined) body.password = data.password
+  if (data.role !== undefined) body.role = data.role
+
+  try {
+    const updated = await api<Record<string, unknown>>(`/users/${id}`, { method: "PUT", body })
+    return toCamel<User>(updated)
+  } catch {
+    return undefined
   }
-  const { data: updated } = await supabase.from("users").update(snakeData).eq("id", id).select("id, name, email, role, created_at").single()
-  return updated ? toCamel<User>(updated) : undefined
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await supabase.from("users").delete().eq("id", id)
+  await api<void>(`/users/${id}`, { method: "DELETE" })
 }
 
 // ===== USER_SCHOOLS (pivot) =====
 export async function getSchoolsByUser(userId: string): Promise<string[]> {
-  const { data } = await supabase.from("user_schools").select("school_id").eq("user_id", userId)
-  return (data ?? []).map((r) => r.school_id)
+  const data = await api<Record<string, unknown>[]>(`/users/${userId}/schools`)
+  return (data ?? []).map((r) => r.id as string)
 }
 
 export async function getUsersBySchool(schoolId: string): Promise<string[]> {
-  const { data } = await supabase.from("user_schools").select("user_id").eq("school_id", schoolId)
-  return (data ?? []).map((r) => r.user_id)
+  const data = await api<Record<string, unknown>[]>("/users", { query: { school_id: schoolId } })
+  return (data ?? []).map((r) => r.id as string)
 }
 
 export async function addUserSchool(userId: string, schoolId: string): Promise<void> {
-  const { error } = await supabase.from("user_schools").insert({ user_id: userId, school_id: schoolId })
-  if (error) throw error
+  await api<void>(`/users/${userId}/schools`, { method: "POST", body: { school_id: schoolId } })
 }
 
 export async function removeUserSchool(userId: string, schoolId: string): Promise<void> {
-  await supabase.from("user_schools").delete().eq("user_id", userId).eq("school_id", schoolId)
+  await api<void>(`/users/${userId}/schools/${schoolId}`, { method: "DELETE" })
 }
 
 export async function replaceUserSchools(userId: string, schoolIds: string[]): Promise<void> {
-  await supabase.from("user_schools").delete().eq("user_id", userId)
-  const rows = schoolIds.map((sid) => ({ user_id: userId, school_id: sid }))
-  if (rows.length > 0) await supabase.from("user_schools").insert(rows)
+  await api<void>(`/users/${userId}/schools`, { method: "PUT", body: { school_ids: schoolIds } })
 }
