@@ -9,15 +9,12 @@ import { PageHeaderProvider, usePageHeader } from "@/lib/page-header"
 import type { AuthUser } from "@/lib/types"
 
 function Header() {
-  const { left, right } = usePageHeader()
+  const { left } = usePageHeader()
 
   return (
-    <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+    <div className="flex items-center gap-2 border-b border-white/10 bg-background/70 px-4 py-2 backdrop-blur-xl">
       <SidebarTrigger />
-      <div className="flex flex-1 items-center justify-between">
-        <div className="flex items-center gap-3">{left}</div>
-        <div className="flex items-center gap-2">{right}</div>
-      </div>
+      <div className="flex items-center gap-3 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:tracking-tight">{left}</div>
     </div>
   )
 }
@@ -67,10 +64,17 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar user={user!} />
-      <main className="flex-1">
+      <main className="relative flex-1">
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-32 left-1/4 size-[32rem] rounded-full bg-primary/10 blur-[120px]" />
+          <div className="absolute top-1/3 -right-24 size-[28rem] rounded-full bg-secondary/10 blur-[120px]" />
+          <div className="absolute bottom-0 -left-24 size-[26rem] rounded-full bg-accent/10 blur-[120px]" />
+        </div>
         <PageHeaderProvider>
-          <Header />
-          <div className="p-6">
+          <div className="sticky top-0 z-30">
+            <Header />
+          </div>
+          <div className="relative p-6">
             {children}
           </div>
         </PageHeaderProvider>

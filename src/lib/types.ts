@@ -13,12 +13,33 @@ export interface School {
   createdAt: string
 }
 
+export interface Role {
+  id: string
+  name: string
+  permissions: string[]
+  createdAt: string
+  updatedAt?: string
+  usersCount?: number
+}
+
+export interface SchoolLink {
+  id: string
+  name?: string
+  city?: string
+  nap?: string | null
+  pivot?: { nap?: string | null }
+}
+
 export interface User {
   id: string
   name: string
   email: string
   password?: string
   role: "admin" | "orientador" | "professor" | "escola"
+  roleId?: string | null
+  permissions?: string[]
+  roleData?: Role | null
+  schools?: SchoolLink[]
   createdAt: string
 }
 
@@ -26,6 +47,8 @@ export interface AuthUser {
   email: string
   name: string
   role: "admin" | "orientador" | "professor" | "escola"
+  roleId?: string | null
+  permissions?: string[]
   userId?: string
   schoolId?: string
 }

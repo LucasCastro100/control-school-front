@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Plus, Pencil, Trash2, BookOpen, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, X, LoaderCircle, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react"
+import { Plus, Pencil, Trash2, Eye, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, LoaderCircle, CheckCircle2, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
+import { ActionTooltip } from "@/components/ui/action-tooltip"
 import {
   Card,
   CardContent,
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { SchoolsSkeleton } from "@/components/skeletons/schools-skeleton"
-import type { School, User, Class, TbrCategory } from "@/lib/types"
+import type { School, User, Class } from "@/lib/types"
 import {
   getSchools,
   getSchoolsByYear,
@@ -43,9 +44,7 @@ import {
   getClasses,
   getRoomsByClass,
   getUsersByRole,
-  getTbrCategories,
   getTbrTeamsBySchool,
-  replaceTbrTeamsForSchool,
   getSchoolsByUser,
   getUsersBySchool,
   replaceUserSchools,
@@ -73,16 +72,9 @@ export default function SchoolsPage() {
   const [city, setCity] = useState("")
   const [color, setColor] = useState("")
   const [scheduleType, setScheduleType] = useState<"semanal" | "quinzenal">("semanal")
-  const [schoolEmail, setSchoolEmail] = useState("")
-  const [schoolPassword, setSchoolPassword] = useState("")
-  const [showSchoolPassword, setShowSchoolPassword] = useState(false)
   const [orientadorId, setOrientadorId] = useState("")
   const [orientadores, setOrientadores] = useState<User[]>([])
-  const [tbrCategories, setTbrCategories] = useState<TbrCategory[]>([])
-  const [teams, setTeams] = useState<{ id: string; categoryId: string; name: string }[]>([])
   const [active, setActive] = useState(true)
-  const [teamCategoryId, setTeamCategoryId] = useState("")
-  const [teamName, setTeamName] = useState("")
 
   const [stateOptions, setStateOptions] = useState<{ value: string; label: string }[]>([])
   const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([])
@@ -100,6 +92,7 @@ export default function SchoolsPage() {
   const [schoolOrientadorIdMap, setSchoolOrientadorIdMap] = useState<Record<string, string>>({})
   const [schoolYears, setSchoolYears] = useState<string[]>([])
   const [pageLoading, setPageLoading] = useState(true)
+  const [allClasses, setAllClasses] = useState<Class[]>([])
 
   const { setHeader } = usePageHeader()
 
@@ -109,7 +102,6 @@ export default function SchoolsPage() {
       setAuthUser(session)
       const orientadoresList = await getUsersByRole("orientador")
       setOrientadores(orientadoresList)
-      setTbrCategories(await getTbrCategories())
 
       const classesData = await getClasses()
       setAllClasses(classesData)
@@ -165,14 +157,12 @@ export default function SchoolsPage() {
         </div>
         <h1 className="text-lg font-medium">{isOrientador ? "Minhas Escolas" : "Escolas"}</h1>
       </div>,
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={() => handleOpenChange(true)}>
         <Plus className="size-4 mr-2" />
         Nova Escola
       </Button>
     )
-  }, [])
-
-  const [allClasses, setAllClasses] = useState<Class[]>([])
+  }, [setHeader])
 
   const schoolsByAcademicYear = filterYear
     ? new Set(allClasses.filter((c) => c.year === filterYear).map((c) => c.schoolId))
@@ -246,30 +236,11 @@ export default function SchoolsPage() {
       setCity("")
       setColor("")
       setScheduleType("semanal")
-      setSchoolEmail("")
-      setSchoolPassword("")
-      setShowSchoolPassword(false)
       setOrientadorId(isOrientador && myOrientadorId ? myOrientadorId : "")
       setActive(true)
       setStateOptions([])
       setCityOptions([])
-      setTeams([])
-      setTeamCategoryId("")
-      setTeamName("")
     }
-  }
-
-  function addTeam() {
-    if (!teamCategoryId || !teamName.trim()) return
-    setTeams((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), categoryId: teamCategoryId, name: teamName.trim() },
-    ])
-    setTeamName("")
-  }
-
-  function removeTeam(id: string) {
-    setTeams((prev) => prev.filter((t) => t.id !== id))
   }
 
   function handleRegionChange(value: string) {
@@ -314,20 +285,10 @@ export default function SchoolsPage() {
     setAddress(school.address)
     setColor(school.color ?? "")
     setScheduleType(school.scheduleType ?? "semanal")
-    setSchoolEmail(school.email ?? "")
-    setSchoolPassword(school.password ?? "")
     const userIds = await getUsersBySchool(school.id)
-    const orientadorUserId = userIds.find((uid) => orientadores.some((o) => o.id === uid)) ?? ""
-    setOrientadorId(orientadorUserId)
+    const orientationUserId = userIds.find((uid) => orientadores.some((o) => o.id === uid)) ?? ""
+    setOrientadorId(orientationUserId)
     setActive(school.active !== false)
-    const tbrTeams = await getTbrTeamsBySchool(school.id)
-    setTeams(
-      tbrTeams.map((t) => ({
-        id: t.id,
-        categoryId: t.categoryId,
-        name: t.name,
-      }))
-    )
     setOpen(true)
 
     setLoadingStates(true)
@@ -372,8 +333,6 @@ export default function SchoolsPage() {
         city,
         color: color || undefined,
         scheduleType,
-        email: schoolEmail.trim() || undefined,
-        password: schoolPassword.trim() || "mudar123",
         active,
       })
       schoolId = editingSchool.id
@@ -386,8 +345,6 @@ export default function SchoolsPage() {
         city,
         color: color || undefined,
         scheduleType,
-        email: schoolEmail.trim() || undefined,
-        password: schoolPassword.trim() || "mudar123",
         active,
       })
       schoolId = created.id
@@ -395,10 +352,6 @@ export default function SchoolsPage() {
     if (finalOrientadorId) {
       await replaceUserSchools(finalOrientadorId, [schoolId])
     }
-    await replaceTbrTeamsForSchool(
-      schoolId,
-      teams.map((t) => ({ categoryId: t.categoryId, name: t.name }))
-    )
     handleOpenChange(false)
     setSaving(false)
     await refresh()
@@ -430,7 +383,7 @@ export default function SchoolsPage() {
               {editingSchool ? "Editar Escola" : "Nova Escola"}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-4">
+          <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
             <div className="flex flex-col gap-2">
               <Label htmlFor="name">Nome</Label>
               <Input
@@ -449,43 +402,6 @@ export default function SchoolsPage() {
                 placeholder="Endereço da escola"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="schoolEmail">Email de acesso</Label>
-                <Input
-                  id="schoolEmail"
-                  type="email"
-                  value={schoolEmail}
-                  onChange={(e) => setSchoolEmail(e.target.value)}
-                  placeholder="Email para login da escola"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Senha de acesso</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showSchoolPassword ? "text" : "password"}
-                    value={schoolPassword}
-                    onChange={(e) => setSchoolPassword(e.target.value)}
-                    placeholder="Senha (padrão: mudar123)"
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSchoolPassword(!showSchoolPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showSchoolPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground -mt-2">
-              Credenciais usadas pela escola para acessar o sistema. Deixe a senha em branco
-              para usar &quot;mudar123&quot;.
-            </p>
             <div className="flex items-center gap-3">
               <Label htmlFor="color" className="flex items-center gap-2 text-sm whitespace-nowrap">
                 <Palette className="size-4" />
@@ -613,59 +529,6 @@ export default function SchoolsPage() {
                 />
               </div>
             )}
-            <div className="flex flex-col gap-2">
-              <Label>Equipes TBR</Label>
-              {tbrCategories.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Nenhuma categoria cadastrada. Cadastre categorias em &quot;TBR&quot; no menu.
-                </p>
-              ) : (
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      options={tbrCategories.map((c) => ({ value: c.id, label: c.name }))}
-                      value={teamCategoryId}
-                      onChange={setTeamCategoryId}
-                      placeholder="Categoria"
-                      searchPlaceholder="Buscar categoria..."
-                      emptyText="Nenhuma categoria encontrada."
-                    />
-                  </div>
-                  <Input
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Nome da equipe"
-                    className="flex-1"
-                  />
-                  <Button type="button" variant="outline" size="icon" onClick={addTeam}>
-                    <Plus className="size-4" />
-                  </Button>
-                </div>
-              )}
-              {teams.length > 0 && (
-                <div className="flex flex-col gap-1 max-h-40 overflow-y-auto rounded-md border p-2">
-                  {teams.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between text-sm">
-                      <span>
-                        <span className="text-muted-foreground">
-                          {tbrCategories.find((c) => c.id === t.categoryId)?.name ?? "-"}:
-                        </span>{" "}
-                        {t.name}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-6"
-                        onClick={() => removeTeam(t.id)}
-                      >
-                        <X className="size-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <LoaderCircle className="size-4 animate-spin" />}
               {editingSchool ? "Salvar" : "Criar"}
@@ -771,6 +634,10 @@ export default function SchoolsPage() {
             </Button>
           )}
         </div>
+        <Button className="ml-auto" size="sm" onClick={() => handleOpenChange(true)}>
+          <Plus className="size-4 mr-2" />
+          Nova Escola
+        </Button>
       </div>
 
       <Card>
@@ -849,24 +716,30 @@ export default function SchoolsPage() {
                           <Link
                             href={`/schools/${school.id}/classes`}
                           >
-                            <Button variant="outline" size="icon">
-                              <BookOpen className="size-4" />
-                            </Button>
+                            <ActionTooltip label="Ver turmas">
+                              <Button variant="outline" size="icon">
+                                <Eye className="size-4" />
+                              </Button>
+                            </ActionTooltip>
                           </Link>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleEdit(school)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            onClick={() => handleDelete(school.id, school.name)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                          <ActionTooltip label="Editar escola">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleEdit(school)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          </ActionTooltip>
+                          <ActionTooltip label="Excluir escola">
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => handleDelete(school.id, school.name)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </ActionTooltip>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -274,6 +274,10 @@ export default function AgendaPage() {
             </span>
           )}
         </div>
+        <Button size="sm" onClick={() => openCreate(new Date())}>
+          <Plus className="size-4 mr-2" />
+          Nova Atividade
+        </Button>
       </div>
 
       <Card className="p-0 overflow-hidden">

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { use } from "react"
 import { Plus, Pencil, Trash2, DoorOpen, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ActionTooltip } from "@/components/ui/action-tooltip"
 import {
   Card,
   CardContent,
@@ -210,7 +211,12 @@ export default function RoomsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Salas Cadastradas</CardTitle>
+          <div className="flex w-full items-center justify-between">
+            <CardTitle>Salas Cadastradas</CardTitle>
+            <Button size="sm" onClick={() => setOpen(true)}>
+              <Plus className="size-4 mr-2" /> Nova Sala
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {rooms.length === 0 ? (
@@ -237,6 +243,7 @@ export default function RoomsPage({
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <ActionTooltip label="Editar sala">
                         <Button
                           variant="outline"
                           size="icon"
@@ -244,13 +251,16 @@ export default function RoomsPage({
                         >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleDelete(room.id, room.name)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                      </ActionTooltip>
+                        <ActionTooltip label="Excluir sala">
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => handleDelete(room.id, room.name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </ActionTooltip>
                       </div>
                     </TableCell>
                   </TableRow>

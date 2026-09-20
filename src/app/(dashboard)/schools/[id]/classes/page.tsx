@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ActionTooltip } from "@/components/ui/action-tooltip"
 import {
   Card,
   CardContent,
@@ -91,7 +92,6 @@ export default function ClassesPage() {
   const [editingClass, setEditingClass] = useState<Class | null>(null)
   const [segmento, setSegmento] = useState("")
   const [classYear, setClassYear] = useState("")
-  const [name, setName] = useState("")
   const [classStats, setClassStats] = useState<
     Record<string, { rooms: number; students: number; biggestRoom: string }>
   >({})
@@ -166,30 +166,9 @@ export default function ClassesPage() {
           <GraduationCap className="size-4 text-primary" />
         </div>
         <h1 className="text-lg font-medium">Turmas - {school?.name}</h1>
-      </div>,
-      <div className="flex items-center gap-2">
-        <Link href={"/items?schoolId=" + id + "&year=" + filterYear}>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Package className="size-4" />
-            Items
-          </Button>
-        </Link>
-        <Link href={"/schools/" + id + "/schedules?year=" + filterYear}>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Calendar className="size-4" />
-            Horário geral
-          </Button>
-        </Link>
-        <Button size="sm" onClick={() => {
-          setClassYear(filterYear)
-          setOpen(true)
-        }}>
-          <Plus className="size-4 mr-2" />
-          Nova Turma
-        </Button>
       </div>
     )
-  }, [school?.name, id, filterYear])
+  }, [school?.name, id])
 
   async function refresh() {
     await loadData()
@@ -202,40 +181,40 @@ export default function ClassesPage() {
       setEditingClass(null)
       setSegmento("")
       setClassYear("")
-      setName("")
     }
   }
 
   function handleSegmentoChange(value: string) {
     setSegmento(value)
     setClassYear("")
-    setName("")
   }
 
   function handleYearChange(value: string) {
     setClassYear(value)
-    if (value) {
-      setName(value)
-    }
   }
 
   function handleEdit(cls: Class) {
     setEditingClass(cls)
     setSegmento(cls.nap)
     setClassYear(filterYear)
-    setName(cls.name)
     setOpen(true)
   }
 
   async function handleSave(closeAfter: boolean) {
-    if (!segmento || !name.trim()) return
+    if (!segmento) return
     const yearValue = editingClass ? editingClass.year : filterYear
     if (!yearValue) return
     setSaving(true)
     if (editingClass) {
-      await updateClass(editingClass.id, { nap: segmento, name: name.trim() })
+      await updateClass(editingClass.id, { nap: segmento, name: editingClass.name })
     } else {
-      await createClass({ schoolId: id, nap: segmento, name: name.trim(), year: yearValue })
+      const yearName = (SEGMENTO_YEARS[segmento] ?? []).find((y) => y.name === classYear)?.name
+      await createClass({
+        schoolId: id,
+        nap: segmento,
+        name: yearName ?? segmento,
+        year: yearValue,
+      })
     }
     setSaving(false)
     await refresh()
@@ -244,7 +223,6 @@ export default function ClassesPage() {
     } else {
       setSegmento("")
       setClassYear("")
-      setName("")
     }
   }
 
@@ -366,7 +344,7 @@ export default function ClassesPage() {
         <span className="text-sm">{school?.name}</span>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
           <Label className="text-sm whitespace-nowrap">Ano Letivo:</Label>
           <SearchableSelect
@@ -378,6 +356,13 @@ export default function ClassesPage() {
             emptyText="Nenhum ano encontrado."
           />
         </div>
+        <Button size="sm" onClick={() => {
+          setClassYear(filterYear)
+          setOpen(true)
+        }}>
+          <Plus className="size-4 mr-2" />
+          Nova Turma
+        </Button>
       </div>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -409,15 +394,6 @@ export default function ClassesPage() {
                 searchPlaceholder="Buscar ano..."
                 emptyText="Nenhum ano encontrado."
                 disabled={!segmento}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="name">Identificador da Turma</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: 1 Ano A"
               />
             </div>
             <div className="flex gap-2">
@@ -531,6 +507,7 @@ export default function ClassesPage() {
                         {room.studentCount ?? 0} alunos
                       </span>
                     </div>
+                    <ActionTooltip label="Excluir sala">
                     <Button
                       variant="destructive"
                       size="icon"
@@ -539,6 +516,7 @@ export default function ClassesPage() {
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
+                  </ActionTooltip>
                   </div>
                 ))}
               </div>
@@ -666,6 +644,7 @@ export default function ClassesPage() {
                         <TableCell>{stats?.biggestRoom ?? "-"}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <ActionTooltip label="Ver salas">
                             <Button
                               variant="outline"
                               size="icon"
@@ -674,29 +653,36 @@ export default function ClassesPage() {
                             >
                               <DoorOpen className="size-3.5" />
                             </Button>
+                          </ActionTooltip>
                             <Link
                               href={"/schools/" + id + "/classes/" + cls.id + "/schedules"}
                             >
-                              <Button variant="outline" size="icon" className="size-8">
-                                <Calendar className="size-3.5" />
-                              </Button>
+                              <ActionTooltip label="Ver horários">
+                                <Button variant="outline" size="icon" className="size-8">
+                                  <Calendar className="size-3.5" />
+                                </Button>
+                              </ActionTooltip>
                             </Link>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="size-8"
-                              onClick={() => handleEdit(cls)}
-                            >
-                              <Pencil className="size-3.5" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="size-8"
-                              onClick={() => handleDelete(cls.id, cls.name)}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
+                            <ActionTooltip label="Editar turma">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-8"
+                                onClick={() => handleEdit(cls)}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                            </ActionTooltip>
+                            <ActionTooltip label="Excluir turma">
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="size-8"
+                                onClick={() => handleDelete(cls.id, cls.name)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </ActionTooltip>
                           </div>
                         </TableCell>
                       </TableRow>

@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Components gerados por https://reactbits.dev — código de terceiros, fora do escopo do lint do app.
+  {
+    ignores: ["src/components/{Beams,CountUp,FloatingLines,GhostFibers,GradientText,Magnet,Particles,ShinyText,SplitText,SpotlightCard,StarBorder}.tsx"],
+  },
 ]);
 
 export default eslintConfig;

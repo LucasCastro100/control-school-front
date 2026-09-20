@@ -34,11 +34,6 @@ export default function ChangePasswordPage() {
   useEffect(() => {
     setHeader(
       <div className="flex items-center gap-3">
-        <Link href="/profile">
-          <Button variant="ghost" size="icon" className="size-7">
-            <ArrowLeft className="size-4" />
-          </Button>
-        </Link>
         <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 ring-1 ring-primary/20">
           <Lock className="size-4 text-primary" />
         </div>
@@ -72,6 +67,14 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="max-w-lg">
+      <div className="mb-4">
+        <Link href="/profile">
+          <Button variant="ghost" size="sm" className="gap-2">
+            <ArrowLeft className="size-4" />
+            Meu Perfil
+          </Button>
+        </Link>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Mudar senha</CardTitle>

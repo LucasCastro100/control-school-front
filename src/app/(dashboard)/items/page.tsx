@@ -1,14 +1,20 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Plus, Pencil, Trash2, Package, X, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ActionTooltip } from "@/components/ui/action-tooltip"
+import { Card, CardContent } from "@/components/ui/card"
 import {
-  Card,
-  CardContent,
-} from "@/components/ui/card"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -27,8 +33,6 @@ import {
   updateItem,
   deleteItem,
   getSchools,
-  getSchoolsByYear,
-  getNapItems,
   getNapItemsBySchoolAndYear,
   getAllNapItems,
   getAcademicYears,
@@ -120,7 +124,7 @@ function ItemsContent() {
         Novo Item
       </Button>
     )
-  }, [])
+  }, [setHeader])
 
   function handleOpenChange(open: boolean) {
     setOpen(open)
@@ -196,9 +200,6 @@ function ItemsContent() {
       .filter((n) => n.itemId === itemId)
       .reduce((s, n) => s + n.quantity, 0)
   }
-
-  const tapetes = displayedItems.filter((i) => i.category === "tapete")
-  const tecnologias = displayedItems.filter((i) => i.category === "tecnologia")
 
   if (pageLoading) return <ItemsSkeleton />
 
@@ -314,97 +315,115 @@ function ItemsContent() {
             />
           </div>
         )}
+        <Button className="ml-auto" size="sm" onClick={() => {
+          setEditingItem(null)
+          setItemName("")
+          setItemCategory("")
+          setItemNaps([])
+          setOpen(true)
+        }}>
+          <Plus className="size-4 mr-2" />
+          Novo Item
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardContent className="p-0">
-            <div className="px-4 py-3 border-b font-medium text-sm text-muted-foreground">Tapetes</div>
-            {tapetes.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground text-center">
-                {filterSchoolId && filterNap
-                  ? "Nenhum tapete vinculado a este NAP."
-                  : "Nenhum tapete cadastrado."}
-              </div>
-            ) : (
-              tapetes.map((item) => {
-                const qty = getQty(item.id)
-                const schoolsCount = totalSchools(item.id)
-                return (
-                  <div key={item.id} className="flex items-center justify-between px-4 py-2 border-b last:border-b-0">
-                    <div>
-                      <span className="text-sm font-medium">{item.name}</span>
-                      <div className="flex gap-1 mt-0.5">
-                        {(item.naps || []).map((nap) => (
-                          <span key={nap} className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                            {nap}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
+      <Card>
+        <CardContent className="p-0">
+          {displayedItems.length === 0 ? (
+            <div className="p-8 text-sm text-muted-foreground text-center">
+              {filterSchoolId && filterNap
+                ? "Nenhum item vinculado a este NAP."
+                : "Nenhum item cadastrado."}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>NAPs</TableHead>
+                  <TableHead>Escolas</TableHead>
+                  {filterSchoolId && filterNap && (
+                    <TableHead className="text-right">Qtd no NAP</TableHead>
+                  )}
+                  <TableHead className="w-px">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayedItems.map((item) => {
+                  const qty = getQty(item.id)
+                  const schoolsCount = totalSchools(item.id)
+                  const isTapete = item.category === "tapete"
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1",
+                            isTapete
+                              ? "bg-emerald-400/15 text-emerald-300 ring-emerald-400/30"
+                              : "bg-indigo-400/15 text-indigo-300 ring-indigo-400/30"
+                          )}
+                        >
+                          {isTapete ? "Tapete" : "Tecnologia"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {(item.naps || []).map((nap) => (
+                            <span
+                              key={nap}
+                              className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                            >
+                              {nap}
+                            </span>
+                          ))}
+                          {(item.naps || []).length === 0 && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         {schoolsCount} escola{schoolsCount !== 1 ? "s" : ""}
-                        {filterSchoolId && filterNap && ` — ${qty} un.`}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="outline" size="icon" className="size-7" onClick={() => handleEdit(item)}>
-                        <Pencil className="size-3" />
-                      </Button>
-                      <Button variant="destructive" size="icon" className="size-7" onClick={() => handleDelete(item.id, item.name)}>
-                        <Trash2 className="size-3" />
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-0">
-            <div className="px-4 py-3 border-b font-medium text-sm text-muted-foreground">Tecnologias</div>
-            {tecnologias.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground text-center">
-                {filterSchoolId && filterNap
-                  ? "Nenhuma tecnologia vinculada a este NAP."
-                  : "Nenhuma tecnologia cadastrada."}
-              </div>
-            ) : (
-              tecnologias.map((item) => {
-                const qty = getQty(item.id)
-                const schoolsCount = totalSchools(item.id)
-                return (
-                  <div key={item.id} className="flex items-center justify-between px-4 py-2 border-b last:border-b-0">
-                    <div>
-                      <span className="text-sm font-medium">{item.name}</span>
-                      <div className="flex gap-1 mt-0.5">
-                        {(item.naps || []).map((nap) => (
-                          <span key={nap} className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                            {nap}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {schoolsCount} escola{schoolsCount !== 1 ? "s" : ""}
-                        {filterSchoolId && filterNap && ` — ${qty} un.`}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="outline" size="icon" className="size-7" onClick={() => handleEdit(item)}>
-                        <Pencil className="size-3" />
-                      </Button>
-                      <Button variant="destructive" size="icon" className="size-7" onClick={() => handleDelete(item.id, item.name)}>
-                        <Trash2 className="size-3" />
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                      </TableCell>
+                      {filterSchoolId && filterNap && (
+                        <TableCell className="text-right">
+                          {qty > 0 ? `${qty} un.` : "—"}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <ActionTooltip label="Editar item">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-7"
+                            onClick={() => handleEdit(item)}
+                          >
+                            <Pencil className="size-3" />
+                          </Button>
+                        </ActionTooltip>
+                          <ActionTooltip label="Excluir item">
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="size-7"
+                              onClick={() => handleDelete(item.id, item.name)}
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                          </ActionTooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </>
   )
 }

@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useCallback, useMemo, type ReactNo
 interface PageHeaderContextType {
   left: ReactNode
   right: ReactNode
-  setHeader: (left: ReactNode, right: ReactNode) => void
+  setHeader: (left: ReactNode, right?: ReactNode) => void
 }
 
 const PageHeaderContext = createContext<PageHeaderContextType>({
@@ -18,9 +18,9 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const [left, setLeft] = useState<ReactNode>(null)
   const [right, setRight] = useState<ReactNode>(null)
 
-  const setHeader = useCallback((left: ReactNode, right: ReactNode) => {
+  const setHeader = useCallback((left: ReactNode, right?: ReactNode) => {
     setLeft(left)
-    setRight(right)
+    setRight(right ?? null)
   }, [])
 
   const value = useMemo(() => ({ left, right, setHeader }), [left, right, setHeader])

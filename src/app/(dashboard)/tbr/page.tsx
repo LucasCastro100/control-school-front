@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Plus, Pencil, Trash2, Users, LoaderCircle } from "lucide-react"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
+import { ActionTooltip } from "@/components/ui/action-tooltip"
 import {
   Card,
   CardContent,
@@ -166,7 +167,12 @@ export default function TbrPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Categorias TBR</CardTitle>
+          <div className="flex w-full items-center justify-between">
+            <CardTitle>Categorias TBR</CardTitle>
+            <Button size="sm" onClick={() => setOpen(true)}>
+              <Plus className="size-4 mr-2" /> Nova Categoria
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {categories.length === 0 ? (
@@ -193,20 +199,24 @@ export default function TbrPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEdit(category)}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
+                        <ActionTooltip label="Editar categoria">
                           <Button
-                            variant="destructive"
+                            variant="outline"
                             size="icon"
-                            onClick={() => handleDelete(category.id, category.name)}
+                            onClick={() => handleEdit(category)}
                           >
-                            <Trash2 className="size-4" />
+                            <Pencil className="size-4" />
                           </Button>
+                        </ActionTooltip>
+                          <ActionTooltip label="Excluir categoria">
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => handleDelete(category.id, category.name)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </ActionTooltip>
                       </div>
                     </TableCell>
                   </TableRow>

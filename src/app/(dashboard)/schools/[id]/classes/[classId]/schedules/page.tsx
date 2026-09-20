@@ -4,14 +4,10 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use } from "react"
-import { Plus, Pencil, Trash2, Calendar, LoaderCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, Calendar, LoaderCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { ActionTooltip } from "@/components/ui/action-tooltip"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -21,12 +17,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Badge } from "@/components/ui/badge"
 import { usePageHeader } from "@/lib/page-header"
@@ -52,6 +49,15 @@ const DAY_MAP: Record<number, DayOfWeek> = {
   4: "Sexta",
   5: "Sábado",
 }
+
+const DAY_TINT = [
+  "bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-500/30",
+  "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+  "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30",
+  "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+]
 
 export default function SchedulesPage({
   params,
@@ -229,7 +235,7 @@ export default function SchedulesPage({
       </div>
 
       {rooms.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <SearchableSelect
             options={[
               { value: "all", label: "Todas as Salas" },
@@ -244,6 +250,16 @@ export default function SchedulesPage({
             searchPlaceholder="Buscar sala..."
             emptyText="Nenhuma sala encontrada."
           />
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <Plus className="size-4 mr-2" /> Novo Horário
+          </Button>
+        </div>
+      )}
+      {rooms.length === 0 && (
+        <div className="mb-6 flex justify-end">
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <Plus className="size-4 mr-2" /> Novo Horário
+          </Button>
         </div>
       )}
 
@@ -368,98 +384,100 @@ export default function SchedulesPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-           {groupedSchedules.map(({ day, schedules }, idx) => (
-            <Card key={day} className="pt-0">
-              <CardHeader className={`bg-gradient-to-r ${[
-                "from-primary/20 to-secondary/10",
-                "from-secondary/20 to-accent/10",
-                "from-accent/20 to-primary/10",
-                "from-chart-4/20 to-secondary/10",
-                "from-chart-5/20 to-accent/10",
-                "from-primary/15 to-chart-4/10",
-              ][idx % 6]} rounded-t-xl items-center pt-(--card-spacing)`}>
-                <CardTitle className="text-lg">{day}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {schedules.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    Nenhum horário
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {schedules.map((schedule) => (
-                      <div
-                        key={schedule.id}
-                        className="flex items-start justify-between rounded-lg border p-3 border-l-transparent hover:border-l-primary/50 transition-colors"
-                        style={{
-                          borderLeftColor:
-                            school?.scheduleType === "quinzenal"
-                              ? schedule.fortnight === 2
-                                ? "oklch(0.62 0.22 25)"
-                                : "oklch(0.62 0.2 245)"
-                              : `oklch(0.62 0.22 ${275 + schedule.dayOfWeek * 20})`,
-                        }}
-                      >
-                        <div className="flex flex-col gap-1">
-                          {selectedRoom === "all" && (
-                            <Badge variant="default" className="w-fit mb-1">
+        <Card>
+          <CardContent className="p-0">
+            {schedules.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nenhum horário cadastrado.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dia</TableHead>
+                    {selectedRoom === "all" && <TableHead>Sala</TableHead>}
+                    {school?.scheduleType === "quinzenal" && <TableHead>Quinzena</TableHead>}
+                    <TableHead>Horário</TableHead>
+                    <TableHead>Matéria</TableHead>
+                    <TableHead>Professor</TableHead>
+                    <TableHead className="w-px">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groupedSchedules.map(({ day, schedules }, idx) =>
+                    schedules.map((schedule) => (
+                      <TableRow key={schedule.id}>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${DAY_TINT[idx % DAY_TINT.length]}`}
+                          >
+                            {day}
+                          </span>
+                        </TableCell>
+                        {selectedRoom === "all" && (
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-auto">
                               {rooms.find((r) => r.id === schedule.roomId)?.name ?? schedule.roomId}
                             </Badge>
-                          )}
-                          {school?.scheduleType === "quinzenal" && (
+                          </TableCell>
+                        )}
+                        {school?.scheduleType === "quinzenal" && (
+                          <TableCell>
                             <span
-                              className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
                                 schedule.fortnight === 2
-                                  ? "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                  ? "bg-orange-500/15 text-orange-300"
+                                  : "bg-blue-500/15 text-blue-300"
                               }`}
                             >
                               Quinzena {schedule.fortnight ?? 1}
                             </span>
-                          )}
-                          <span className="font-medium">
-                            Educação Tecnológica
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs font-semibold tabular-nums">
+                            <Clock className="size-3.5 text-muted-foreground" />
+                            {schedule.startTime} - {schedule.endTime}
                           </span>
-                          <span className="text-sm text-muted-foreground">
-                            {schedule.startTime} -{" "}
-                            {schedule.endTime}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="w-fit"
-                          >
+                        </TableCell>
+                        <TableCell className="font-medium">Educação Tecnológica</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-auto">
                             {schedule.teacher}
                           </Badge>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            onClick={() =>
-                              handleEdit(schedule)
-                            }
-                          >
-                            <Pencil className="size-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            onClick={() => setDeleteTarget({ id: schedule.id, label: `${schedule.startTime}-${schedule.endTime}` })}
-                          >
-                            <Trash2 className="size-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <ActionTooltip label="Editar horário">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              onClick={() => handleEdit(schedule)}
+                            >
+                              <Pencil className="size-3" />
+                            </Button>
+                          </ActionTooltip>
+                            <ActionTooltip label="Excluir horário">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                onClick={() => setDeleteTarget({ id: schedule.id, label: `${schedule.startTime}-${schedule.endTime}` })}
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </ActionTooltip>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       )}
     </>
   )

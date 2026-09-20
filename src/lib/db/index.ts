@@ -1,7 +1,8 @@
 // Re-exports from all domain modules
 export { generateId, toCamel, toSnake } from "./helpers"
 export { login, logout, getSession, resetPassword, updatePassword, updateProfile } from "./auth"
-export { getUsers, getUsersByRole, getUser, createUser, updateUser, deleteUser, getSchoolsByUser, getUsersBySchool, addUserSchool, removeUserSchool, replaceUserSchools } from "./users"
+export { getUsers, getUsersByRole, getUser, getRoles, createUser, updateUser, deleteUser, getSchoolsByUser, getUsersBySchool, getSchoolUsers, addUserSchool, removeUserSchool, replaceUserSchools, replaceUserSchoolsWithNap } from "./users"
+export { createRole, updateRole, deleteRole } from "./roles"
 export { getSchools, getSchoolsByYear, getSchoolYears, getAcademicYears, getSchool, createSchool, updateSchool, deleteSchool } from "./schools"
 export { getClasses, getClassesBySchool, getClass, getClassesBySchoolAndYear, createClass, updateClass, deleteClass } from "./classes"
 export { getRooms, getRoomsByClass, getRoom, createRoom, updateRoom, deleteRoom } from "./rooms"
