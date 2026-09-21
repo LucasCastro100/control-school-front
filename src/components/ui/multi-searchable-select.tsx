@@ -45,13 +45,18 @@ export function MultiSearchableSelect({
     .map((v) => options.find((opt) => opt.value === v)?.label)
     .filter(Boolean)
 
+  function closeMenu() {
+    setOpen(false)
+    setSearch("")
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        closeMenu()
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -61,12 +66,6 @@ export function MultiSearchableSelect({
   useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus()
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) {
-      setSearch("")
     }
   }, [open])
 
@@ -86,7 +85,11 @@ export function MultiSearchableSelect({
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        onClick={() => !disabled && setOpen(!open)}
+        onClick={() => {
+          if (disabled) return
+          if (open) closeMenu()
+          else setOpen(true)
+        }}
         className={cn(
           "flex min-h-10 w-full items-center justify-between gap-1 rounded-xl border border-input bg-background px-3 py-2 text-sm transition-all",
           "focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",

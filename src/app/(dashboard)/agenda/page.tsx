@@ -105,6 +105,9 @@ export default function AgendaPage() {
     async function load() {
       const session = await getSession()
       setUser(session)
+      if (session?.role === "orientador" && session.userId) {
+        setFilterOrientador(session.userId)
+      }
       const [o, i] = await Promise.all([getUsersByRole("orientador"), getAgendaItems()])
       setOrientadores(o)
       setItems(i)
@@ -112,12 +115,6 @@ export default function AgendaPage() {
     }
     load()
   }, [])
-
-  useEffect(() => {
-    if (user?.role === "orientador" && user.userId) {
-      setFilterOrientador(user.userId)
-    }
-  }, [user])
 
   useEffect(() => {
     setHeader(

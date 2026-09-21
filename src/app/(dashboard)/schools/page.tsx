@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Plus, Pencil, Trash2, Eye, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, LoaderCircle, CheckCircle2, XCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, Eye, School as SchoolIcon, ChevronLeft, ChevronRight, Palette, LoaderCircle, CheckCircle2, XCircle, GraduationCap } from "lucide-react"
 import { toast } from "sonner"
 import { usePageHeader } from "@/lib/page-header"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,6 @@ import { ActionTooltip } from "@/components/ui/action-tooltip"
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import {
   Dialog,
@@ -22,14 +20,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { SchoolsSkeleton } from "@/components/skeletons/schools-skeleton"
 import type { School, User, Class } from "@/lib/types"
@@ -180,9 +170,12 @@ export default function SchoolsPage() {
     page * pageSize
   )
 
-  useEffect(() => {
+  const filterKey = [filterYear, filterState, filterOrientadorId, filterActive, pageSize].join("|")
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey)
+  if (lastFilterKey !== filterKey) {
+    setLastFilterKey(filterKey)
     setPage(1)
-  }, [filterYear, filterState, filterOrientadorId, filterActive, pageSize])
+  }
 
   async function refresh() {
     let allSchools = await getSchools()
@@ -640,114 +633,113 @@ export default function SchoolsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Escolas Cadastradas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {paginatedSchools.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              Nenhuma escola cadastrada.
-            </p>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Horários</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Cidade</TableHead>
-                    <TableHead>Orientador</TableHead>
-                    <TableHead>Qtd Turmas</TableHead>
-                    <TableHead>Qtd Alunos</TableHead>
-                    <TableHead>Equipes TBR</TableHead>
-                    <TableHead className="w-px">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedSchools.map((school) => (
-                    <TableRow key={school.id} className={school.active === false ? "opacity-50" : ""}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {school.active !== false ? (
-                            <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
-                          ) : (
-                            <XCircle className="size-3.5 text-muted-foreground shrink-0" />
-                          )}
-                          {school.color && (
-                            <span
-                              className="inline-block size-3 rounded-full shrink-0"
-                              style={{ backgroundColor: school.color }}
-                            />
-                          )}
-                          {school.name || "-"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
+      <div className="flex flex-col gap-4">
+        {paginatedSchools.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-muted-foreground text-center py-8">
+                Nenhuma escola cadastrada.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {paginatedSchools.map((school) => {
+            const stats = schoolStats[school.id] ?? { classes: 0, students: 0, teams: 0 }
+            const isQuinzenal = (school.scheduleType ?? "semanal") === "quinzenal"
+            return (
+              <Card
+                key={`card-${school.id}`}
+                className={school.active === false ? "opacity-50" : ""}
+              >
+                <CardContent className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {school.active !== false ? (
+                        <CheckCircle2 className="size-4 text-green-500 shrink-0" />
+                      ) : (
+                        <XCircle className="size-4 text-muted-foreground shrink-0" />
+                      )}
+                      {school.color && (
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            (school.scheduleType ?? "semanal") === "quinzenal"
-                              ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                          }`}
-                        >
-                          {(school.scheduleType ?? "semanal") === "quinzenal"
-                            ? "Quinzenal"
-                            : "Semanal"}
-                        </span>
-                      </TableCell>
-                      <TableCell>{school.state || "-"}</TableCell>
-                      <TableCell>{school.city || "-"}</TableCell>
-                      <TableCell>
-                        {schoolOrientadorMap[school.id] || "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {schoolStats[school.id]?.classes ?? 0}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {schoolStats[school.id]?.students ?? 0}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {schoolStats[school.id]?.teams ?? 0}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center gap-2">
-                          <Link
-                            href={`/schools/${school.id}/classes`}
-                          >
-                            <ActionTooltip label="Ver turmas">
-                              <Button variant="outline" size="icon">
-                                <Eye className="size-4" />
-                              </Button>
-                            </ActionTooltip>
-                          </Link>
-                          <ActionTooltip label="Editar escola">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleEdit(school)}
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                          </ActionTooltip>
-                          <ActionTooltip label="Excluir escola">
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => handleDelete(school.id, school.name)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </ActionTooltip>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          className="inline-block size-4 rounded-lg shrink-0"
+                          style={{ backgroundColor: school.color }}
+                        />
+                      )}
+                      <span className="font-medium truncate">{school.name || "-"}</span>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        isQuinzenal
+                          ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      }`}
+                    >
+                      {isQuinzenal ? "Quinzenal" : "Semanal"}
+                    </span>
+                  </div>
 
-              <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground truncate">
+                    {[school.city, school.state].filter(Boolean).join(" - ") || "-"}
+                  </p>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <GraduationCap className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">
+                      {schoolOrientadorMap[school.id] || "Sem orientador"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/40 p-3 text-center">
+                    <div>
+                      <div className="text-lg font-semibold">{stats.classes}</div>
+                      <div className="text-xs text-muted-foreground">Turmas</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{stats.students}</div>
+                      <div className="text-xs text-muted-foreground">Alunos</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{stats.teams}</div>
+                      <div className="text-xs text-muted-foreground">Equipes TBR</div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Link href={`/schools/${school.id}/classes`}>
+                      <ActionTooltip label="Ver turmas">
+                        <Button variant="outline" size="icon">
+                          <Eye className="size-4" />
+                        </Button>
+                      </ActionTooltip>
+                    </Link>
+                    <ActionTooltip label="Editar escola">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleEdit(school)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    </ActionTooltip>
+                    <ActionTooltip label="Excluir escola">
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleDelete(school.id, school.name)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </ActionTooltip>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Exibir</span>
                   <SearchableSelect
@@ -813,9 +805,8 @@ export default function SchoolsPage() {
                 </div>
               </div>
             </>
-          )}
-        </CardContent>
-      </Card>
+      )}
+      </div>
     </>
   )
 }

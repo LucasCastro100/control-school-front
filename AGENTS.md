@@ -17,6 +17,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Histórico de mudanças recentes
 
+- Validação cross-projeto (smoke test back+front): `src/proxy.ts` agora protege também a raiz `/` (antes usuário deslogado via `/` recebia 200 com dashboard quebrado; agora 307 → `/login`). `src/app/api/backend/[...path]/route.ts` passa `Accept: application/json` ao backend (sem isso, token expirado + Laravel API-only → 500 em vez de 401). Tipo `PendingAccount` definido em `school-accounts-view.tsx` (faltava; quebrava o tsc).
 - Tooltip de ações (`ActionTooltip`, `src/components/ui/action-tooltip.tsx`): aplicado nas ações das tabelas de usuários, escolas, cargos, categorias TBR, itens, turmas, salas, horários, contas e equipes.
 - Modal de turma (`/schools/[id]/classes`): campo "Identificador da Turma" **removido**. O nome da turma agora é derivado automaticamente do Ano selecionado (fallback: NAP); na edição o nome original é preservado (só o NAP muda).
 - "Contas de acesso" e "Equipes TBR" viraram **páginas próprias** (não mais modais): `/schools/[id]/accounts` e `/schools/[id]/teams`. Acessos: grupo "Ações da Escola" no **menu lateral** (admin **e orientador**). Header da página de turmas limpo (só botão "Nova Turma"). Removido `school-actions-menu.tsx`.

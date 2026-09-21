@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
-import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, Package, LoaderCircle } from "lucide-react"
+import { Plus, Pencil, Trash2, DoorOpen, Calendar, GraduationCap, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ActionTooltip } from "@/components/ui/action-tooltip"
 import {
@@ -18,14 +18,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { usePageHeader } from "@/lib/page-header"
 import { ClassesSkeleton } from "@/components/skeletons/classes-skeleton"
@@ -329,6 +321,8 @@ export default function ClassesPage() {
     segmentoGroups.push({ segmento: "Outros", classes: otherClasses })
   }
 
+  const itemSegments = segmentoGroups.map((g) => g.segmento)
+
   if (pageLoading) return <ClassesSkeleton />
 
   return (
@@ -572,7 +566,89 @@ export default function ClassesPage() {
         </DialogContent>
       </Dialog>
 
-      {segmentoGroups.length === 0 ? (
+      {itemSegments.length > 0 && (
+        <div className="flex flex-col gap-4 mb-6">
+          <h2 className="text-base font-medium">Itens por NAP</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {itemSegments.map((seg) => {
+              const segNapItems = napItems.filter((n) => n.segmentName === seg)
+              const tapetes = segNapItems.filter(
+                (n) => items.find((i) => i.id === n.itemId)?.category === "tapete"
+              )
+              const tecnologias = segNapItems.filter(
+                (n) => items.find((i) => i.id === n.itemId)?.category === "tecnologia"
+              )
+              return (
+                <Card key={`items-${seg}`}>
+                  <CardContent className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">{seg}</span>
+                      <ActionTooltip label="Editar itens">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => openItemDialog(seg)}
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                      </ActionTooltip>
+                    </div>
+                    {segNapItems.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhum item configurado.</p>
+                    ) : (
+                      <>
+                        {tapetes.length > 0 && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-medium uppercase text-muted-foreground">
+                              Tapetes
+                            </span>
+                            {tapetes.map((n) => (
+                              <div
+                                key={n.id}
+                                className="flex items-center justify-between gap-2 text-sm"
+                              >
+                                <span className="truncate">
+                                  {items.find((i) => i.id === n.itemId)?.name || "-"}
+                                </span>
+                                <span className="shrink-0 text-muted-foreground">
+                                  {n.quantity} un.
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {tecnologias.length > 0 && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-medium uppercase text-muted-foreground">
+                              Tecnologias
+                            </span>
+                            {tecnologias.map((n) => (
+                              <div
+                                key={n.id}
+                                className="flex items-center justify-between gap-2 text-sm"
+                              >
+                                <span className="truncate">
+                                  {items.find((i) => i.id === n.itemId)?.name || "-"}
+                                </span>
+                                <span className="shrink-0 text-muted-foreground">
+                                  {n.quantity} un.
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {segmentoGroups.length === 0 && (
         <Card>
           <CardContent className="py-8">
             <p className="text-center text-muted-foreground">
@@ -580,119 +656,93 @@ export default function ClassesPage() {
             </p>
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-28">Segmento</TableHead>
-                  <TableHead>Turma</TableHead>
-                  <TableHead className="text-center w-20">Ano Letivo</TableHead>
-                  <TableHead className="text-center w-24">Qtd Salas</TableHead>
-                  <TableHead className="text-center w-24">Total Alunos</TableHead>
-                  <TableHead>Maior Sala</TableHead>
-                  <TableHead className="w-44">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {segmentoGroups.map(({ segmento: groupSeg, classes: groupClasses }) =>
-                  groupClasses.map((cls, i) => {
-                    const stats = classStats[cls.id]
-                    const segNapItems = napItems.filter((n) => n.segmentName === groupSeg)
-                    const tapeteCount = segNapItems.reduce((sum, n) => {
-                      const item = items.find((it) => it.id === n.itemId)
-                      return item?.category === "tapete" ? sum + n.quantity : sum
-                    }, 0)
-                    const tecCount = segNapItems.reduce((sum, n) => {
-                      const item = items.find((it) => it.id === n.itemId)
-                      return item?.category === "tecnologia" ? sum + n.quantity : sum
-                    }, 0)
-                    return (
-                      <TableRow key={cls.id} className={"align-top" + (i === groupClasses.length - 1 ? " border-b-2" : "")}>
-                        {i === 0 && (
-                          <TableCell
-                            rowSpan={groupClasses.length}
-                            className="font-semibold text-muted-foreground align-middle text-center"
-                          >
-                            <div className="flex flex-col items-center gap-1">
-                              <span>{groupSeg}</span>
-                              <button
-                                onClick={() => openItemDialog(groupSeg)}
-                                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                              >
-                                <Package className="size-3" />
-                                {tapeteCount} tapetes, {tecCount} tecnologias
-                              </button>
-                            </div>
-                          </TableCell>
-                        )}
-                        <TableCell className="font-medium">
-                          {cls.name || "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                            {cls.year}
+      )}
+
+      {segmentoGroups.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-base font-medium">Turmas</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {segmentoGroups.map(({ segmento: groupSeg, classes: groupClasses }) =>
+              groupClasses.map((cls) => {
+                const stats = classStats[cls.id]
+                return (
+                  <Card key={`card-${cls.id}`}>
+                    <CardContent className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-medium uppercase text-muted-foreground">
+                            {groupSeg}
                           </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {stats?.rooms ?? 0}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {stats?.students ?? 0}
-                        </TableCell>
-                        <TableCell>{stats?.biggestRoom ?? "-"}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <ActionTooltip label="Ver salas">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="size-8"
-                              onClick={() => openRoomsDialog(cls)}
-                            >
-                              <DoorOpen className="size-3.5" />
+                          <span className="font-medium truncate">{cls.name || "-"}</span>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          {cls.year}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/40 p-3 text-center">
+                        <div>
+                          <div className="text-lg font-semibold">{stats?.rooms ?? 0}</div>
+                          <div className="text-xs text-muted-foreground">Salas</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold">{stats?.students ?? 0}</div>
+                          <div className="text-xs text-muted-foreground">Alunos</div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-lg font-semibold truncate">{stats?.biggestRoom ?? "-"}</div>
+                          <div className="text-xs text-muted-foreground">Maior Sala</div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-1">
+                        <ActionTooltip label="Adicionar salas">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => openRoomsDialog(cls)}
+                          >
+                            <DoorOpen className="size-3.5" />
+                          </Button>
+                        </ActionTooltip>
+                        <Link
+                          href={"/schools/" + id + "/classes/" + cls.id + "/schedules"}
+                        >
+                          <ActionTooltip label="Ver horários">
+                            <Button variant="outline" size="icon" className="size-8">
+                              <Calendar className="size-3.5" />
                             </Button>
                           </ActionTooltip>
-                            <Link
-                              href={"/schools/" + id + "/classes/" + cls.id + "/schedules"}
-                            >
-                              <ActionTooltip label="Ver horários">
-                                <Button variant="outline" size="icon" className="size-8">
-                                  <Calendar className="size-3.5" />
-                                </Button>
-                              </ActionTooltip>
-                            </Link>
-                            <ActionTooltip label="Editar turma">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="size-8"
-                                onClick={() => handleEdit(cls)}
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                            </ActionTooltip>
-                            <ActionTooltip label="Excluir turma">
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                className="size-8"
-                                onClick={() => handleDelete(cls.id, cls.name)}
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </ActionTooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                        </Link>
+                        <ActionTooltip label="Editar turma">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => handleEdit(cls)}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                        </ActionTooltip>
+                        <ActionTooltip label="Excluir turma">
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => handleDelete(cls.id, cls.name)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </ActionTooltip>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+        </div>
       )}
     </>
   )

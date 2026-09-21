@@ -18,6 +18,7 @@ import type { Role, User } from "@/lib/types"
 import {
   getRoles,
   getSchoolUsers,
+  getUsers,
   createUser,
   addUserSchool,
   removeUserSchool,
@@ -33,6 +34,20 @@ import { cn } from "@/lib/utils"
 
 type AccountLevel = "orientador" | "professor" | "diretor" | "coordenador" | "escola"
 
+type PendingAccount = {
+  key: string
+  name: string
+  email: string
+  password: string
+  level: AccountLevel
+  nap: string | null
+  existingUserId?: string
+}
+
+function needsFixedNap(level: AccountLevel): boolean {
+  return level === "professor" || level === "coordenador"
+}
+
 const ACCOUNT_TYPE_OPTIONS: Record<
   AccountLevel,
   { label: string; role: User["role"]; roleName: string }
@@ -44,23 +59,16 @@ const ACCOUNT_TYPE_OPTIONS: Record<
   escola: { label: "Acesso da escola", role: "escola", roleName: "Escola" },
 }
 
-const ACCOUNT_LEVEL_OPTIONS = (Object.keys(ACCOUNT_TYPE_OPTIONS) as AccountLevel[]).map((k) => ({
+const ACCOUNT_LEVEL_OPTIONS: { value: AccountLevel; label: string }[] = (
+  ["professor", "coordenador", "diretor", "orientador"] as AccountLevel[]
+).map((k) => ({
   value: k,
   label: ACCOUNT_TYPE_OPTIONS[k].label,
 }))
-
-interface PendingAccount {
-  key: string
-  name: string
-  email: string
-  password: string
-  level: AccountLevel
-  nap: string
-}
-
 export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
   const [roles, setRoles] = useState<Role[]>([])
   const [linkedUsers, setLinkedUsers] = useState<User[]>([])
+  const [allUsers, setAllUsers] = useState<User[]>([])
   const [pendingAccounts, setPendingAccounts] = useState<PendingAccount[]>([])
   const [removedUserIds, setRemovedUserIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,15 +84,21 @@ export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const [rs, users] = await Promise.all([getRoles(), getSchoolUsers(schoolId)])
+      const [rs, users, all] = await Promise.all([getRoles(), getSchoolUsers(schoolId), getUsers()])
       setRoles(rs)
       setLinkedUsers(users)
+      setAllUsers(all)
       setPendingAccounts([])
       setRemovedUserIds([])
       setLoading(false)
     }
     load()
   }, [schoolId])
+
+  function existingUserByEmail(email: string): User | undefined {
+    const normalized = email.trim().toLowerCase()
+    return allUsers.find((u) => u.email.trim().toLowerCase() === normalized)
+  }
 
   function napCount(nap: string): number {
     const existing = linkedUsers.filter(
@@ -112,8 +126,17 @@ export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
       toast.error("Preencha nome e email da conta de acesso.")
       return
     }
-    if (napCount(accNap) >= 2) {
+    const fixedNap = needsFixedNap(accLevel)
+    if (fixedNap && napCount(accNap) >= 2) {
       toast.error(`Limite de 2 usuário(s) por NAP atingido em ${accNap}.`)
+      return
+    }
+    const existing = existingUserByEmail(accEmail)
+    const alreadyPending = pendingAccounts.some(
+      (a) => a.email.trim().toLowerCase() === accEmail.trim().toLowerCase()
+    )
+    if (alreadyPending) {
+      toast.error("Este email já está na lista de contas abaixo.")
       return
     }
     setPendingAccounts((prev) => [
@@ -124,11 +147,17 @@ export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
         email: accEmail.trim(),
         password: accPassword,
         level: accLevel,
-        nap: accNap,
+        nap: needsFixedNap(accLevel) ? accNap : null,
+        existingUserId: existing?.id,
       },
     ])
     setAddOpen(false)
     resetAddForm()
+    if (existing) {
+      toast.info(
+        `O email já está cadastrado (${existing.name}). A conta será vinculada a esta escola.`
+      )
+    }
   }
 
   function removePendingAccount(key: string) {
@@ -157,7 +186,7 @@ export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
         role: type.role,
         roleId: roleId || null,
       })
-      await addUserSchool(created.id, schoolIdToPersist, acc.nap)
+      await addUserSchool(created.id, schoolIdToPersist, acc.nap ?? undefined)
     }
   }
 
@@ -267,7 +296,7 @@ export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
                   <span className="truncate font-medium">{a.name}</span>
                   <span className="truncate text-muted-foreground">{a.email}</span>
                   <span className="inline-flex items-center rounded-full bg-violet-400/15 px-2 py-0.5 text-xs text-violet-300">
-                    {a.nap}
+                    {a.nap ?? "Escola"}
                   </span>
                   <span className="inline-flex items-center gap-1 text-xs text-amber-500">
                     <LoaderCircle className="size-3 animate-spin" /> novo
@@ -386,20 +415,26 @@ export function SchoolAccountsView({ schoolId }: { schoolId: string }) {
                   emptyText="Nenhum tipo encontrado."
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label>NAP</Label>
-                <SearchableSelect
-                  options={NAP_OPTIONS.map((nap) => ({
-                    value: nap,
-                    label: `${nap}${remainingNapSlots(nap) === 0 ? " (cheio)" : ""}`,
-                  }))}
-                  value={accNap}
-                  onChange={(v) => v && setAccNap(v)}
-                  placeholder="NAP"
-                  searchPlaceholder=""
-                  emptyText=""
-                />
-              </div>
+              {needsFixedNap(accLevel) ? (
+                <div className="flex flex-col gap-2">
+                  <Label>NAP</Label>
+                  <SearchableSelect
+                    options={NAP_OPTIONS.map((nap) => ({
+                      value: nap,
+                      label: `${nap}${remainingNapSlots(nap) === 0 ? " (cheio)" : ""}`,
+                    }))}
+                    value={accNap}
+                    onChange={(v) => v && setAccNap(v)}
+                    placeholder="NAP"
+                    searchPlaceholder=""
+                    emptyText=""
+                  />
+                </div>
+              ) : (
+                <div className="flex items-end pb-1 text-xs text-muted-foreground">
+                  Acesso à escola inteira (todos os NAPs).
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setAddOpen(false)}>

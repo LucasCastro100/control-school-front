@@ -21,6 +21,7 @@ async function handler(request: NextRequest, context: { params: Promise<{ path: 
     method: request.method,
     headers: {
       Authorization: `Bearer ${token}`,
+      Accept: "application/json",
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body,

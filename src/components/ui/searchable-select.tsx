@@ -56,6 +56,11 @@ export function SearchableSelect({
     setOpen(true)
   }
 
+  function closeMenu() {
+    setOpen(false)
+    setSearch("")
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node
@@ -65,7 +70,7 @@ export function SearchableSelect({
       ) {
         return
       }
-      setOpen(false)
+      closeMenu()
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
@@ -78,17 +83,14 @@ export function SearchableSelect({
   }, [open])
 
   useEffect(() => {
-    if (!open) {
-      setSearch("")
-      return
-    }
+    if (!open) return
 
     function closeOnScroll(event: Event) {
       if (popupRef.current?.contains(event.target as Node)) return
-      setOpen(false)
+      closeMenu()
     }
     function closeOnResize() {
-      setOpen(false)
+      closeMenu()
     }
     document.addEventListener("scroll", closeOnScroll, true)
     window.addEventListener("resize", closeOnResize)
@@ -103,7 +105,7 @@ export function SearchableSelect({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => (open ? setOpen(false) : openMenu())}
+        onClick={() => (open ? closeMenu() : openMenu())}
         className={cn(
           "flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground transition-all",
           "focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -161,7 +163,7 @@ export function SearchableSelect({
                     type="button"
                     onClick={() => {
                       onChange(opt.value)
-                      setOpen(false)
+                      closeMenu()
                     }}
                     className={cn(
                       "relative flex w-full items-center gap-2 px-3 py-1.5 text-sm outline-none",

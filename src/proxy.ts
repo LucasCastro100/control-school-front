@@ -5,7 +5,7 @@ export function proxy(request: NextRequest) {
 
   const publicPages = ["/login", "/forgot-password", "/reset-password"]
   const isAuthPage = publicPages.includes(request.nextUrl.pathname)
-  const isProtectedRoute = !isAuthPage && request.nextUrl.pathname !== "/"
+  const isProtectedRoute = !isAuthPage
   const isApiRoute = request.nextUrl.pathname.startsWith("/api")
 
   if (!token && isProtectedRoute && !isApiRoute) {
