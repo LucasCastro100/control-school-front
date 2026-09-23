@@ -1,6 +1,6 @@
 # Memória do Projeto — Control School
 
-> Última atualização: 2026-09-19
+> Última atualização: 2026-09-23
 > Gerida pela skill `.opencode/skills/project-memory/SKILL.md`. Leia ao iniciar, atualize ao terminar.
 
 ---
@@ -70,7 +70,35 @@ Browser → fetch('/api/backend/<path>')            (helper api() em src/lib/bac
 
 ---
 
+## Catálogo MundoZ — tela `/monitoramento` (EM CONSTRUÇÃO)
+
+Mapa da tela da plataforma MundoZ, alimentado aos poucos pelo usuário ao longo dos dias. O usuário descreve campos/opções; manter esta seção sempre atualizada. NÃO repetir perguntas já mapeadas.
+
+**Fluxo de acesso:** login `https://mundoz.zoom.education/` (campo "Usuário" aceita email) → menu `https://mundoz.zoom.education/monitoramento` → botão "Adicionar +" abre o formulário (título "Participantes", botão verde "Salvar").
+
+**Ordem/lógica completa do formulário (descrição do usuário, 2026-09-23):**
+1. **Escola** — input `#search-school`, placeholder "Digite o nome ou o cnpj da escola". Digita p/ buscar; clica na **lupa**; abre caixa com nomes de escolas; seleciona o nome.
+2. **Ano** — select/combo onde se **digita o ano para procurar** (busca digitável, como confirmado por) e seleciona a opção.
+3. **Tipo** — select: **Presencial / Híbrido / Remoto** (confirmado o conjunto).
+4. **Confirmado por** — select que **aceita valor digitado pelo usuário**; salvar esse valor e comparar com a caixa que aparece ao clicar na setinha (autocomplete).
+5. **Data** — input `#date` (type date).
+6. **Horário de início** — input `#start-time` (type time).
+7. **Horário de término** — input `#end-time` (type time).
+8. **Responsável** — campo com ícone de **"+"** p/ adicionar responsável(s).
+9. **Ações** — campo com tabs (por select), várias opções e **também tem botão "+"** p/ adicionar ação. **PENDENTE: usuário irá levantar cada conjunto de opções (o usuário vai "pegar cada conjunto" das abas).**
+10. **Salvar** — no final, clicar no botão verde com texto "Salvar" (confirma o cadastro).
+
+**Controles:** nada usa `<select>` nativo nem `role=combobox` — são combos customizados; confirmado por é combo com digitável (novo padrão p/ automação: digitar texto e clicar na opção que casa, salvar o valor).
+
+**Outros botões do modal:** "Acessar Plano de Ação", "Adicionar", "Conectar Outlook".
+
+**Pendente de descrição do usuário:** opções de **Ações** (conjuntos das abas — o usuário vai levantar), comportamento do "+" de Responsável, seletor da lupa da escola. **Ano** e **Tipo** já resolvidos (ano com busca digitável; tipo Presencial/Híbrido/Remoto).
+
+---
+
 ## Journal
+
+- **2026-09-23 — MundoZ/monitoramento + Agenda:** implementado "Registrar no MundoZ" por atividade (checkbox no dialog da Agenda + campos escola/ano/tipo/confirmado por persistidos na `agenda`; back migration `2026_09_23_000001`; botão de automação só envia itens marcados com infos por item). Corrigido erro Base UI de `Button render={<Link/>}` (`nativeButton=false` quando há `render`) e erro de hidratação `<button>` dentro de `<button>` no `MultiSearchableSelect` (trigger virou `<div role="button">`). Criada seção "Catálogo MundoZ" acima p/ acumular descrição da tela `/monitoramento` ao longo dos dias. **Fluxo completo descrito:** Escola (busca+lupa) → Ano (select) → Tipo (select) → Confirmado por (combo digitável) → Data → Hora início → Hora término → Responsável ("+") → Ações (tabs com "+") → Salvar. Falta: opções de Ano/Tipo/Ações e comportamento do "+".
 
 - **2026-09-18 → 19 — Migração completa + split do projeto:**
   - Backend Laravel criado (14 tabelas, 13 controllers Api, 77 rotas sanctum, seed admin+TBR, CORS, testes 11/11).

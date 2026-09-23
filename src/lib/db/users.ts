@@ -1,4 +1,4 @@
-import type { Role, User } from "../types"
+import type { MundozCredentials, Role, School, User } from "../types"
 import { api } from "@/lib/backend"
 import { toCamel } from "./helpers"
 
@@ -62,10 +62,47 @@ export async function deleteUser(id: string): Promise<void> {
   await api<void>(`/users/${id}`, { method: "DELETE" })
 }
 
+// ===== MUNDOZ (credenciais de acesso à plataforma) =====
+export async function getMundozCredentials(userId: string): Promise<MundozCredentials | null> {
+  try {
+    const data = await api<Record<string, unknown>>(`/users/${userId}/mundoz`)
+    return {
+      mundozUser: String(data.mundoz_user ?? ""),
+      mundozPassword: String(data.mundoz_password ?? ""),
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function updateMundozCredentials(
+  userId: string,
+  creds: { mundozUser?: string | null; mundozPassword?: string | null }
+): Promise<boolean> {
+  try {
+    const body: Record<string, unknown> = {}
+    if (creds.mundozUser !== undefined) body.mundoz_user = creds.mundozUser ?? null
+    if (creds.mundozPassword !== undefined) body.mundoz_password = creds.mundozPassword ?? null
+    const res = await fetch(`/api/backend/users/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // ===== USER_SCHOOLS (pivot) =====
-export async function getSchoolsByUser(userId: string): Promise<string[]> {
+export async function getUserSchools(userId: string): Promise<School[]> {
   const data = await api<Record<string, unknown>[]>(`/users/${userId}/schools`)
-  return (data ?? []).map((r) => r.id as string)
+  return (data ?? []).map(toCamel<School>)
+}
+
+export async function getSchoolsByUser(userId: string): Promise<string[]> {
+  const data = await getUserSchools(userId)
+  return data.map((s) => s.id)
 }
 
 export async function getUsersBySchool(schoolId: string): Promise<string[]> {

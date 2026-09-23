@@ -1,6 +1,7 @@
 import {
   Calendar,
   CalendarDays,
+  FileSpreadsheet,
   KeyRound,
   Package,
   School,
@@ -46,6 +47,7 @@ const adminMenu: SidebarItem[] = [
   { label: "TBR", icon: Users, href: "/tbr" },
   { label: "Horário Geral", icon: Calendar, href: "/all-schedules" },
   { label: "Agenda", icon: CalendarDays, href: "/agenda" },
+  { label: "Cadastro de Alunos", icon: FileSpreadsheet, href: "/students_register" },
 ]
 
 export function getMainMenu(user: AuthUser | null): SidebarItem[] {

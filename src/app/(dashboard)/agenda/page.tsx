@@ -8,11 +8,16 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  Play,
+  Square,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
   Dialog,
@@ -22,14 +27,18 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select"
 import { usePageHeader } from "@/lib/page-header"
 import { AgendaSkeleton } from "@/components/skeletons/agenda-skeleton"
-import type { AuthUser, User, AgendaItem } from "@/lib/types"
+import { cn } from "@/lib/utils"
+import type { AuthUser, User, School, AgendaItem } from "@/lib/types"
 import {
   getSession,
   getUsersByRole,
+  getUserSchools,
+  getSchools,
   getAgendaItems,
   createAgendaItem,
   updateAgendaItem,
@@ -63,6 +72,8 @@ const ORIENTADOR_COLORS = [
   "oklch(0.55 0.18 190)",
 ]
 
+const MONITOR_TIPOS = ["Presencial", "Remoto", "Híbrido"]
+
 function dateKey(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -82,6 +93,7 @@ function buildGrid(year: number, month: number): Date[] {
 export default function AgendaPage() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [orientadores, setOrientadores] = useState<User[]>([])
+  const [userSchools, setUserSchools] = useState<School[]>([])
   const [items, setItems] = useState<AgendaItem[]>([])
   const [current, setCurrent] = useState(() => {
     const now = new Date()
@@ -95,11 +107,38 @@ export default function AgendaPage() {
   const [formStart, setFormStart] = useState("")
   const [formEnd, setFormEnd] = useState("")
   const [formActivity, setFormActivity] = useState("")
+  const [formRegistrarMundoz, setFormRegistrarMundoz] = useState(false)
+  const [formEscola, setFormEscola] = useState("")
+  const [formAno, setFormAno] = useState("")
+  const [formTipo, setFormTipo] = useState("")
+  const [formConfirmadoPor, setFormConfirmadoPor] = useState("")
   const [saving, setSaving] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+  const [monStatus, setMonStatus] = useState<"idle" | "running" | "done" | "error">("idle")
+  const [monLog, setMonLog] = useState<string[]>([])
+  const [monShowBrowser, setMonShowBrowser] = useState(false)
+  const [monErr, setMonErr] = useState("")
   const { setHeader } = usePageHeader()
 
   const isAdmin = user?.role === "admin"
+  const isOrientador = user?.role === "orientador"
+
+  useEffect(() => {
+    if (monStatus !== "running") return
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch("/api/monitoramento/status")
+        const j = (await res.json()) as { log?: string[]; state?: { status?: string } }
+        if (j.log) setMonLog(j.log)
+        if (j.state?.status === "done" || j.state?.status === "error") {
+          setMonStatus(j.state.status)
+        }
+      } catch {
+        // continua tentando
+      }
+    }, 2000)
+    return () => clearInterval(t)
+  }, [monStatus])
 
   useEffect(() => {
     async function load() {
@@ -107,6 +146,11 @@ export default function AgendaPage() {
       setUser(session)
       if (session?.role === "orientador" && session.userId) {
         setFilterOrientador(session.userId)
+        const schools = await getUserSchools(session.userId)
+        setUserSchools(schools)
+      } else if (session?.role === "admin") {
+        const schools = await getSchools()
+        setUserSchools(schools)
       }
       const [o, i] = await Promise.all([getUsersByRole("orientador"), getAgendaItems()])
       setOrientadores(o)
@@ -166,6 +210,11 @@ export default function AgendaPage() {
     setFormStart("")
     setFormEnd("")
     setFormActivity("")
+    setFormRegistrarMundoz(false)
+    setFormEscola("")
+    setFormAno(String(new Date().getFullYear()))
+    setFormTipo("Presencial")
+    setFormConfirmadoPor(user?.name ?? "")
     setOpen(true)
   }
 
@@ -176,6 +225,11 @@ export default function AgendaPage() {
     setFormStart(item.startTime)
     setFormEnd(item.endTime)
     setFormActivity(item.activity)
+    setFormRegistrarMundoz(!!item.registrarMundoz)
+    setFormEscola(item.escola ? (userSchools.find((s) => s.name === item.escola)?.id ?? "") : "")
+    setFormAno(item.ano ?? String(new Date().getFullYear()))
+    setFormTipo(item.tipo ?? "Presencial")
+    setFormConfirmadoPor(item.confirmadoPor ?? user?.name ?? "")
     setOpen(true)
   }
 
@@ -184,12 +238,18 @@ export default function AgendaPage() {
       return
     }
     setSaving(true)
+    const selectedEscola = userSchools.find((s) => s.id === formEscola)?.name ?? formEscola
     const data = {
       orientadorIds: formOrientadorIds,
       date: formDate,
       startTime: formStart,
       endTime: formEnd,
       activity: formActivity.trim(),
+      registrarMundoz: formRegistrarMundoz,
+      escola: formRegistrarMundoz ? selectedEscola : "",
+      ano: formRegistrarMundoz ? formAno : "",
+      tipo: formRegistrarMundoz ? formTipo : "",
+      confirmadoPor: formRegistrarMundoz ? formConfirmadoPor : "",
     }
     if (editing) {
       await updateAgendaItem(editing.id, data)
@@ -210,6 +270,45 @@ export default function AgendaPage() {
     setItems(updated)
     setOpen(false)
     setEditing(null)
+  }
+
+  async function handleRunMonitor() {
+    if (!user) return
+    setMonErr("")
+    setMonLog([])
+    const targets = items.filter(
+      (i) => i.orientadorIds.includes(user.userId ?? "") && i.registrarMundoz
+    )
+    if (targets.length === 0) {
+      setMonErr("Nenhuma atividade sua marcada como 'Registrar no MundoZ' na agenda.")
+      return
+    }
+    try {
+      const res = await fetch("/api/monitoramento/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: targets, showBrowser: monShowBrowser }),
+      })
+      const j = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        setMonErr(j.error || "Falha ao iniciar a automação.")
+        return
+      }
+      setMonStatus("running")
+    } catch {
+      setMonErr("Falha de conexão com o servidor.")
+    }
+  }
+
+  async function handleStopMonitor() {
+    await fetch("/api/monitoramento/stop", { method: "POST" })
+    setMonStatus("idle")
+  }
+
+  function monLogClass(line: string): string {
+    if (line.startsWith("MONITORAMENTO OK") || line.startsWith("LOGIN OK")) return "text-[#4bd081]"
+    if (line.includes("FALHA") || line.includes("Erro") || line.includes("error")) return "text-[#ff7b74]"
+    return "text-[#5f6b7c]"
   }
 
   function changeMonth(delta: number) {
@@ -328,9 +427,10 @@ export default function AgendaPage() {
                         }}
                         className="truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-white cursor-pointer hover:opacity-80"
                         style={{ backgroundColor: orientadorColor(item.orientadorIds[0] ?? "") }}
-                        title={`${item.activity} (${item.startTime} - ${item.endTime}) - ${item.orientadorIds.map(orientadorName).join(", ")}`}
+                        title={`${item.activity} (${item.startTime} - ${item.endTime}) - ${item.orientadorIds.map(orientadorName).join(", ")}${item.registrarMundoz ? " - MundoZ" : ""}`}
                       >
                         {item.startTime} {item.activity}
+                        {item.registrarMundoz && <span className="ml-1 font-bold">·MZ</span>}
                       </button>
                     ))}
                     {dayItems.length > 3 && (
@@ -345,6 +445,61 @@ export default function AgendaPage() {
           </div>
         </CardContent>
       </Card>
+
+      {isOrientador && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Automação MundoZ</CardTitle>
+            <CardDescription>
+              Registra na plataforma MundoZ as atividades da sua agenda marcadas como
+              &ldquo;Registrar no MundoZ&rdquo;.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={monShowBrowser}
+                  onCheckedChange={setMonShowBrowser}
+                  disabled={monStatus === "running"}
+                  aria-label="Mostrar navegador durante a execução"
+                />
+                Mostrar navegador durante a execução
+              </label>
+              <Button onClick={handleRunMonitor} disabled={monStatus === "running"}>
+                {monStatus === "running" ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Play className="size-4 mr-2" />
+                )}
+                {monStatus === "running" ? "Registrando…" : "Registrar no MundoZ"}
+              </Button>
+              {monStatus === "running" && (
+                <Button variant="destructive" onClick={handleStopMonitor}>
+                  <Square className="size-4 mr-2" />
+                  Parar
+                </Button>
+              )}
+            </div>
+            {monStatus === "done" && (
+              <p className="text-sm text-emerald-500">Registro de monitoramentos concluído.</p>
+            )}
+            {monStatus === "error" && (
+              <p className="text-sm text-red-500">A automação terminou com erro — veja o log abaixo.</p>
+            )}
+            {monErr && <p className="text-sm text-red-500">{monErr}</p>}
+            {monLog.length > 0 && (
+              <div className="max-h-72 overflow-y-auto rounded-xl bg-[#10151d] p-4 font-mono text-xs leading-relaxed text-[#b8c4d4]">
+                {monLog.map((l, i) => (
+                  <div key={i} className={monLogClass(l)}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog
         open={open}
@@ -417,6 +572,60 @@ export default function AgendaPage() {
                 placeholder="Ex: Visita à escola"
               />
             </div>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-medium">
+              <Checkbox
+                checked={formRegistrarMundoz}
+                onCheckedChange={(v) => setFormRegistrarMundoz(v === true)}
+                aria-label="Registrar no MundoZ"
+              />
+              Registrar no MundoZ
+            </label>
+            {formRegistrarMundoz && (
+              <div className="flex flex-col gap-4 rounded-xl border border-border bg-muted/40 p-3">
+                <div className="flex flex-col gap-2">
+                  <Label>Escola</Label>
+                  <SearchableSelect
+                    options={userSchools.map((s) => ({ value: s.id, label: s.name }))}
+                    value={formEscola}
+                    onChange={setFormEscola}
+                    placeholder="Selecione a escola"
+                    searchPlaceholder="Buscar escola..."
+                    emptyText="Nenhuma escola encontrada."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="ano">Ano</Label>
+                    <Input
+                      id="ano"
+                      value={formAno}
+                      onChange={(e) => setFormAno(e.target.value)}
+                      placeholder={String(new Date().getFullYear())}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Tipo</Label>
+                    <SearchableSelect
+                      options={MONITOR_TIPOS.map((t) => ({ value: t, label: t }))}
+                      value={formTipo}
+                      onChange={setFormTipo}
+                      placeholder="Selecione o tipo"
+                      searchPlaceholder="Buscar tipo..."
+                      emptyText="Nenhum tipo encontrado."
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="confirmadoPor">Confirmado por</Label>
+                  <Input
+                    id="confirmadoPor"
+                    value={formConfirmadoPor}
+                    onChange={(e) => setFormConfirmadoPor(e.target.value)}
+                    placeholder="Quem confirmou a visita"
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2">
               {editing ? (
                 <Button variant="destructive" onClick={confirmDelete}>

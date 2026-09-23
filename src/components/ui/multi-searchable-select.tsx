@@ -83,23 +83,33 @@ export function MultiSearchableSelect({
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
+        aria-expanded={open}
         onClick={() => {
           if (disabled) return
           if (open) closeMenu()
           else setOpen(true)
         }}
+        onKeyDown={(e) => {
+          if (disabled) return
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            if (open) closeMenu()
+            else setOpen(true)
+          }
+        }}
         className={cn(
           "flex min-h-10 w-full items-center justify-between gap-1 rounded-xl border border-input bg-background px-3 py-2 text-sm transition-all",
-          "focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-          "disabled:cursor-not-allowed disabled:opacity-50",
+          "cursor-pointer focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          "aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
           value.length === 0 && "text-muted-foreground",
           className
         )}
-        disabled={disabled}
       >
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {selectedLabels.length > 0 ? (
             selectedLabels.map((label, i) => (
               <span
@@ -109,11 +119,12 @@ export function MultiSearchableSelect({
                 {label}
                 <button
                   type="button"
+                  aria-label={`Remover ${label}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleRemove(value[i])
                   }}
-                  className="rounded-full hover:bg-primary/20 p-0.5"
+                  className="rounded-full p-0.5 hover:bg-primary/20"
                 >
                   <X className="size-3" />
                 </button>
@@ -124,7 +135,7 @@ export function MultiSearchableSelect({
           )}
         </div>
         <ChevronDown className="size-4 shrink-0 opacity-50" />
-      </button>
+      </div>
 
       {open && (
         <div

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# dados de automação (planilha importada, logs, pdfs)
+/.data

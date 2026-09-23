@@ -43,6 +43,11 @@ export interface User {
   createdAt: string
 }
 
+export interface MundozCredentials {
+  mundozUser: string
+  mundozPassword: string
+}
+
 export interface AuthUser {
   email: string
   name: string
@@ -101,6 +106,11 @@ export interface AgendaItem {
   startTime: string
   endTime: string
   activity: string
+  registrarMundoz?: boolean
+  escola?: string
+  ano?: string
+  tipo?: string
+  confirmadoPor?: string
   createdAt: string
 }
 
